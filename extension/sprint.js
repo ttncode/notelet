@@ -1,8 +1,13 @@
-import { parseHtml } from "./model.js";
+import { newNote, parseHtml } from "./model.js";
 
 const DAY_MS = 86_400_000;
 const TICKET_SELECTOR = "ul.checklist > li";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const SPRINT_LENGTH_DAYS = 14;
+const DEFAULT_TARGET = 18;
+const MAX_LABEL_LENGTH = 20;
+const STATUS_ID = /^[a-z0-9-]{1,24}$/;
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 export const DEFAULT_STATUSES = Object.freeze([
   Object.freeze({ id: "s1", label: "Todo", color: "#8e8e93" }),
@@ -87,3 +92,34 @@ const roundPoints = (value) => Math.round(value * 100) / 100;
 export const formatShortDate = (iso) => new Date(utcDay(iso)).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
 
 export const formatSprintRange = (sprint) => `${formatShortDate(sprint.start)} – ${formatShortDate(sprint.end)}`;
+
+export function newSprint(now, notes, statuses) {
+  const latest = notes
+    .filter((note) => note.sprint && note.deletedAt === null)
+    .sort((a, b) => b.sprint.end.localeCompare(a.sprint.end))[0];
+  const start = latest ? addDays(latest.sprint.end, 1) : isoDate(new Date(now));
+  const sprint = { start, end: addDays(start, SPRINT_LENGTH_DAYS - 1), target: latest?.sprint.target ?? DEFAULT_TARGET };
+  const html = `<h1>Sprint</h1><ul class="checklist"><li data-checked="false" data-status="${statuses[0].id}"><br></li></ul>`;
+  return { ...newNote(now), html, sprint };
+}
+
+export function validateSprintSettings({ start, end, target, statuses }) {
+  if (!isIsoDate(start) || !isIsoDate(end) || end < start) return "The end date must be on or after the start date.";
+  if (!(Number.isFinite(target) && target > 0)) return "Target points must be more than 0.";
+  if (statuses.length === 0) return "Keep at least one status.";
+  if (statuses.some((status) => status.label.trim() === "")) return "Every status needs a label.";
+  return null;
+}
+
+export function isValidStatus(status) {
+  return typeof status === "object" && status !== null
+    && typeof status.id === "string" && STATUS_ID.test(status.id)
+    && typeof status.label === "string" && status.label.trim() !== "" && status.label.length <= MAX_LABEL_LENGTH
+    && typeof status.color === "string" && HEX_COLOR.test(status.color);
+}
+
+export function isValidSprint(sprint) {
+  return typeof sprint === "object" && sprint !== null
+    && isIsoDate(sprint.start) && isIsoDate(sprint.end) && sprint.end >= sprint.start
+    && Number.isFinite(sprint.target) && sprint.target > 0;
+}
