@@ -4,6 +4,7 @@ const DAY_MS = 86_400_000;
 const TICKET_SELECTOR = "ul.checklist > li";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SPRINT_LENGTH_DAYS = 14;
+const HALF_YEAR_DAYS = 183;
 const DEFAULT_TARGET = 18;
 const MAX_LABEL_LENGTH = 20;
 const STATUS_ID = /^[a-z0-9-]{1,24}$/;
@@ -135,7 +136,7 @@ export function isValidSprint(sprint) {
 export function migrateTargetNote(note, statuses, today) {
   if (note.sprint) return note;
   const target = findTarget(note.html);
-  if (target === null) return note;
+  if (target === null || target <= 0) return note;
   const body = parseHtml(note.html).body;
   [...body.querySelectorAll(LINE_BLOCKS)].find((block) => TARGET_LINE.test(ownText(block).trim()))?.remove();
   body.querySelectorAll(TICKET_SELECTOR).forEach((item) => convertTicket(item, statuses));
@@ -152,7 +153,15 @@ function titleDates(title, updatedAt) {
   const match = title.match(TITLE_RANGE);
   if (!match) return null;
   const [startDay, startMonth, endDay, endMonth] = match.slice(1).map(Number);
+  const range = { startDay, startMonth, endDay, endMonth };
   const year = new Date(updatedAt).getFullYear();
+  const dates = datesInYear(year, range);
+  // A Dec–Jan range edited in January would otherwise land in the coming December.
+  if (dates && dates.start > addDays(isoDate(new Date(updatedAt)), HALF_YEAR_DAYS)) return datesInYear(year - 1, range);
+  return dates;
+}
+
+function datesInYear(year, { startDay, startMonth, endDay, endMonth }) {
   const start = toIso(year, startMonth, startDay);
   let end = toIso(year, endMonth, endDay);
   if (start && end && end < start) end = toIso(year + 1, endMonth, endDay);
@@ -215,4 +224,9 @@ function takeStatus(nodes, statuses) {
 
 function cutMatch(node, match) {
   node.textContent = node.textContent.slice(0, match.index) + node.textContent.slice(match.index + match[0].length);
+}
+
+export function sameSettings(first, second) {
+  const same = (a, b) => a.id === b.id && a.label === b.label && a.color === b.color;
+  return first.statuses.length === second.statuses.length && first.statuses.every((status, index) => same(status, second.statuses[index]));
 }

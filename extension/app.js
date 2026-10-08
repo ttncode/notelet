@@ -4,7 +4,7 @@ import { NoteEditor } from "./editor.js";
 import { matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { groupNotes, isEmptyNote, isExpired, newNote, noteText, noteTitle, remoteNotesToApply } from "./model.js";
-import { migrateTargetNote, newSprint, nextStatusId, parsePoints, sprintStats, ticketSearchText } from "./sprint.js";
+import { migrateTargetNote, newSprint, nextStatusId, parsePoints, sameSettings, sprintStats, ticketSearchText } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
 import { renderSprintSummary, renderTicketChips } from "./sprint-view.js";
 import { sanitizeHtml } from "./sanitize.js";
@@ -321,7 +321,7 @@ async function importNotes() {
 }
 
 async function adoptImportedSettings(settings) {
-  if (!settings || JSON.stringify(settings) === JSON.stringify(state.settings)) return;
+  if (!settings || sameSettings(settings, state.settings)) return;
   if (!window.confirm("Replace your status settings with the ones in this backup?")) return;
   state.settings = settings;
   await store.saveSettings(settings);
