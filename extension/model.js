@@ -1,3 +1,5 @@
+import { trackerTitle } from "./tracker.js";
+
 const DAY_MS = 86_400_000;
 const RECENTLY_DELETED_DAYS = 30;
 const TEXT_BLOCKS = "h1,h2,h3,p,pre,li,div";
@@ -6,6 +8,7 @@ const FALLBACK_TITLE = "New Note";
 const FALLBACK_PREVIEW = "No additional text";
 
 export const EMPTY_NOTE_HTML = "<h1><br></h1>";
+export const EMPTY_BODY_HTML = "<p><br></p>";
 
 export function parseHtml(html) {
   return new DOMParser().parseFromString(`<!doctype html><html><body>${html}</body></html>`, "text/html");
@@ -30,6 +33,10 @@ export const noteTitle = (html) => noteLines(html)[0] ?? FALLBACK_TITLE;
 export const notePreview = (html) => noteLines(html)[1] ?? FALLBACK_PREVIEW;
 export const noteText = (html) => noteLines(html).join("\n");
 export const isEmptyNote = (html) => noteLines(html).length === 0;
+
+// A tracker keeps its title and tasks outside the note text, so empty text does not make it blank.
+export const isBlankNote = (note) => !note.sprint && isEmptyNote(note.html);
+export const noteTitleOf = (note) => (note.sprint ? trackerTitle(note.sprint) : noteTitle(note.html));
 
 export function newNote(now) {
   return { id: crypto.randomUUID(), html: EMPTY_NOTE_HTML, pinned: false, updatedAt: now, deletedAt: null, position: now };

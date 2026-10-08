@@ -2,9 +2,7 @@ import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseHtml } from "../extension/model.js";
-import {
-  DEFAULT_SECTIONS, countedTicketItems, ensureSprintSections, isValidSections, ticketDestination,
-} from "../extension/sections.js";
+import { DEFAULT_SECTIONS, ensureSprintSections, extractTracker, isValidSections } from "../extension/sections.js";
 import { DEFAULT_STATUSES } from "../extension/sprint.js";
 
 const SECTIONED = '<h1>Sprint</h1>'
@@ -21,17 +19,6 @@ const sectionTexts = (html) => {
     return [heading?.textContent, texts([...(heading?.nextElementSibling?.children ?? [])])];
   });
 };
-
-test("only tickets in counted sections count; by default that is Current Sprint", () => {
-  assert.deepEqual(texts(countedTicketItems(body(SECTIONED), DEFAULT_SECTIONS)), ["a", "b"]);
-  const both = DEFAULT_SECTIONS.map((section) => ({ ...section, counts: true }));
-  assert.deepEqual(texts(countedTicketItems(body(SECTIONED), both)), ["old", "a", "b"]);
-});
-
-test("a note without sections counts every ticket", () => {
-  const html = '<ul class="checklist"><li>x</li><li>y</li></ul>';
-  assert.deepEqual(texts(countedTicketItems(body(html), DEFAULT_SECTIONS)), ["x", "y"]);
-});
 
 test("existing Last Sprint and Current Sprint headings become the sections; a dashed Last Sprint list becomes tickets", () => {
   const html = "<h1>Weekly Plan</h1><h2>Last Sprint</h2><ul class=\"dashed\"><li>#1 Old work (5) (InQC)</li></ul>"
@@ -57,16 +44,21 @@ test("making sections is idempotent", () => {
   assert.deepEqual(sectionTexts(once), [["Last Sprint", ["old"]], ["Current Sprint", ["a", "b"]]]);
 });
 
-test("moving a ticket one step stays in its list, then crosses into the neighbouring section", () => {
-  const root = body(SECTIONED);
-  const [lastList, currentList] = [...root.querySelectorAll("h2[data-section] + ul.checklist")];
-  const [a, b] = currentList.children;
-  assert.deepEqual(ticketDestination(b, -1), { list: currentList, before: a });
-  assert.deepEqual(ticketDestination(a, 1), { list: currentList, before: null });
-  assert.deepEqual(ticketDestination(a, -1), { list: lastList, before: null });
-  assert.deepEqual(ticketDestination(lastList.children[0], 1), { list: currentList, before: a });
-  assert.equal(ticketDestination(lastList.children[0], -1), null);
-  assert.equal(ticketDestination(b, 1), null);
+test("sections become groups with their tasks; the title and the rest of the note stay apart", () => {
+  const { title, groups, html } = extractTracker(SECTIONED, { sections: DEFAULT_SECTIONS, statuses: DEFAULT_STATUSES });
+  assert.equal(title, "Sprint");
+  assert.deepEqual(groups.map(({ name, counts, collapsed, tasks }) => [name, counts, collapsed, tasks.map(({ title: text, points, done }) => [text, points, done])]), [
+    ["Last Sprint", false, false, [["old", 3, true]]],
+    ["Current Sprint", true, false, [["a", 5, true], ["b", 8, false]]],
+  ]);
+  assert.equal(html, "<h2>Worklog</h2><p>free text</p>");
+});
+
+test("a sprint with nothing but its sections keeps an empty body line and drops empty tickets", () => {
+  const html = '<h1>Sprint</h1><h2 data-section="last">Last Sprint</h2><ul class="checklist"></ul><h2 data-section="current">Current Sprint</h2><ul class="checklist"><li data-checked="false"><br></li></ul>';
+  const { groups, html: rest } = extractTracker(html, { sections: DEFAULT_SECTIONS, statuses: DEFAULT_STATUSES });
+  assert.deepEqual(groups.map((group) => group.tasks.length), [0, 0]);
+  assert.equal(rest, "<p><br></p>");
 });
 
 test("section settings need two labelled sections with a yes/no count flag", () => {

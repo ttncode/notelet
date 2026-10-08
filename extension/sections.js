@@ -1,10 +1,13 @@
-import { parseHtml } from "./model.js";
+// Sprint notes before task tracking kept their tickets in two fixed sections of the note text:
+// <h2 data-section="last|current"> followed by a checklist. This module only reads that layout
+// so older notes and backups can be turned into tracker groups.
+import { EMPTY_BODY_HTML, ownText, parseHtml } from "./model.js";
 import { convertTicket } from "./ticket-text.js";
+import { newGroup } from "./tracker.js";
 
 const SECTION_IDS = ["last", "current"];
 const MAX_LABEL_LENGTH = 30;
-const SECTION_LIST = "h2[data-section] + ul.checklist";
-const TICKET = "ul.checklist > li";
+const STATUS_ID = /^[a-z0-9-]{1,24}$/;
 
 export const DEFAULT_SECTIONS = Object.freeze([
   Object.freeze({ id: "last", label: "Last Sprint", counts: false }),
@@ -20,14 +23,41 @@ export function isValidSections(sections) {
       && typeof section.counts === "boolean");
 }
 
-export function countedTicketItems(body, sections) {
-  if (!body.querySelector("h2[data-section]")) return [...body.querySelectorAll(TICKET)];
-  return sections
-    .filter((section) => section.counts)
-    .flatMap((section) => {
-      const list = body.querySelector(`h2[data-section="${section.id}"]`)?.nextElementSibling;
-      return list?.matches("ul.checklist") ? [...list.querySelectorAll(TICKET)] : [];
-    });
+// Each section becomes a group of the same name; the title line becomes the tracker title and
+// whatever else the note held stays as its free text.
+export function extractTracker(html, { sections, statuses }) {
+  const body = parseHtml(ensureSprintSections(html, { sections, statuses })).body;
+  const titleLine = titleOf(body);
+  const title = titleLine ? titleLine.textContent.trim() : "";
+  titleLine?.remove();
+  const groups = sections.map((section) => takeSectionGroup(body, { section, statuses }));
+  return { title, groups, html: body.innerHTML.trim() === "" ? EMPTY_BODY_HTML : body.innerHTML };
+}
+
+function takeSectionGroup(body, { section, statuses }) {
+  const heading = body.querySelector(`h2[data-section="${section.id}"]`);
+  const list = heading.nextElementSibling;
+  const tasks = [...list.querySelectorAll("li")].map((item) => readTask(item, statuses)).filter((task) => task.title !== "");
+  heading.remove();
+  list.remove();
+  return { ...newGroup({ name: section.label, counts: section.counts }), tasks };
+}
+
+function readTask(item, statuses) {
+  const status = item.getAttribute("data-status");
+  return {
+    id: crypto.randomUUID(),
+    title: ownText(item).replace(/\s+/g, " ").trim(),
+    points: readPoints(item.getAttribute("data-points")),
+    status: status !== null && STATUS_ID.test(status) ? status : statuses[0].id,
+    done: item.getAttribute("data-checked") === "true",
+  };
+}
+
+function readPoints(value) {
+  if (value === null || value === "") return null;
+  const points = Number(value);
+  return Number.isFinite(points) && points >= 0 ? points : null;
 }
 
 export function ensureSprintSections(html, { sections, statuses }) {
@@ -96,19 +126,4 @@ function adoptOrphanTickets(body, sectionLists) {
     sectionLists[1].append(...list.children);
     list.remove();
   }
-}
-
-export function ticketDestination(item, step) {
-  const lists = [...item.ownerDocument.querySelectorAll(SECTION_LIST)];
-  const list = item.parentElement;
-  const listIndex = lists.indexOf(list);
-  if (listIndex === -1) return null;
-  const siblings = [...list.children];
-  const index = siblings.indexOf(item);
-  if (step < 0) {
-    if (index > 0) return { list, before: siblings[index - 1] };
-    return listIndex > 0 ? { list: lists[listIndex - 1], before: null } : null;
-  }
-  if (index < siblings.length - 1) return { list, before: siblings[index + 2] ?? null };
-  return listIndex < lists.length - 1 ? { list: lists[listIndex + 1], before: lists[listIndex + 1].firstElementChild } : null;
 }

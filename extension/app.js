@@ -4,11 +4,11 @@ import { NoteEditor } from "./editor.js";
 import { formatEditedDate } from "./format.js";
 import { matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
-import { isEmptyNote, isExpired, newNote, noteText, noteTitle, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
-import { ensureSprintSections } from "./sections.js";
-import { newSprint, nextStatusId, normalizeSettings, parsePoints, sameSettings, sprintStats, ticketSearchText, upgradeNote } from "./sprint.js";
+import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
+import { legacySections, newSprint, normalizeSettings, sameSettings, upgradeNote } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
-import { renderSprintSummary, renderTicketChips, wireTicketDragging } from "./sprint-view.js";
+import { trackerSearchText } from "./tracker.js";
+import { createTrackerView } from "./tracker-view.js";
 import { sanitizeHtml } from "./sanitize.js";
 import { createSaveScheduler } from "./scheduler.js";
 import { renderNoteList } from "./sidebar.js";
@@ -37,6 +37,7 @@ const saves = createSaveScheduler({ delayMs: SAVE_DELAY_MS, maxWaitMs: SAVE_MAX_
 const state = { currentId: null, mode: "notes", query: "", ui: null, settings: null };
 let editor;
 let layout;
+let tracker;
 let uiSaveTimer = null;
 
 main().catch((error) => {
@@ -54,8 +55,8 @@ async function main() {
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
   layout = setupLayout({ resizer: byId("resizer"), ui: state.ui, onUiChange: saveUiSoon });
+  tracker = createTrackerView({ container: byId("tracker"), onChange: onTrackerChange, onSettings: openSettings });
   wireControls();
-  new ResizeObserver(() => renderChips()).observe(byId("editor"));
   store.onChange(applyRemoteChanges);
   openInitialNote();
 }
@@ -63,7 +64,7 @@ async function main() {
 async function removeStaleNotes() {
   const now = Date.now();
   const staleIds = [...notes.values()]
-    .filter((note) => isExpired(note, now) || (note.deletedAt === null && isEmptyNote(note.html)))
+    .filter((note) => isExpired(note, now) || (note.deletedAt === null && isBlankNote(note)))
     .map((note) => note.id);
   if (staleIds.length === 0) return;
   staleIds.forEach((id) => notes.delete(id));
@@ -85,7 +86,7 @@ function visibleNotes() {
 }
 
 function searchText(note) {
-  return note.sprint ? `${noteText(note.html)}\n${ticketSearchText(note.html, state.settings.statuses)}` : noteText(note.html);
+  return note.sprint ? `${trackerSearchText(note.sprint, state.settings.statuses)}\n${noteText(note.html)}` : noteText(note.html);
 }
 
 function selectFirstVisible() {
@@ -102,16 +103,18 @@ function selectFirstVisible() {
 function selectNote(id, { scrollTop = 0, reveal = true } = {}) {
   discardIfEmpty(state.currentId, id);
   state.currentId = id;
-  editor.load(notes.get(id).html);
+  loadEditor(notes.get(id));
   renderAll();
   byId("editor-scroll").scrollTop = scrollTop;
   if (reveal) layout.showEditor();
   saveUiSoon({ lastNoteId: id, scrollTop });
 }
 
+const loadEditor = (note) => editor.load(note.html, { emptyHtml: note.sprint ? EMPTY_BODY_HTML : EMPTY_NOTE_HTML });
+
 function discardIfEmpty(previousId, nextId) {
   const previous = notes.get(previousId);
-  if (!previous || previousId === nextId || previous.deletedAt !== null || !isEmptyNote(previous.html)) return;
+  if (!previous || previousId === nextId || previous.deletedAt !== null || !isBlankNote(previous)) return;
   removePermanently(previous.id);
 }
 
@@ -195,59 +198,31 @@ function renderEditorPane() {
 
 function renderNoteDetails(note) {
   const sprint = note?.sprint ?? null;
-  byId("editor").classList.toggle("sprint", sprint !== null);
-  const stats = sprint ? sprintStats(note.html, { sprint, today: new Date(), sections: state.settings.sections }) : null;
-  if (sprint) syncSectionHeadings();
-  renderSprintSummary(byId("sprint-summary"), { stats, sprint, onSettings: openSettings });
-  renderChips();
-  document.title = note ? `${noteTitle(note.html)} – Notelet` : "Notelet";
+  document.body.classList.toggle("tracker-view", sprint !== null);
+  tracker.render(sprint ? { sprint, statuses: state.settings.statuses, today: new Date(), editable: state.mode === "notes" } : null);
+  document.title = note ? `${noteTitleOf(note)} – Notelet` : "Notelet";
 }
 
-function renderChips() {
+// Typing in a tracker field saves without a rebuild; the notes list still shows the new title.
+function onTrackerChange(sprint) {
   const note = notes.get(state.currentId);
-  renderTicketChips(byId("ticket-chips"), {
-    editorElement: byId("editor"),
-    statuses: note?.sprint ? state.settings.statuses : null,
-    editable: state.mode === "notes",
-    onPoints: setTicketPoints,
-    onStatus: cycleTicketStatus,
-  });
-}
-
-function setTicketPoints(item, raw) {
-  const points = raw === undefined ? undefined : parsePoints(raw);
-  if (points === undefined) {
-    renderChips();
-    return;
-  }
-  editor.updateTicket(item, (ticket) => {
-    if (points === null) ticket.removeAttribute("data-points");
-    else ticket.setAttribute("data-points", String(points));
-  });
-  renderChips();
-}
-
-function cycleTicketStatus(item) {
-  editor.updateTicket(item, (ticket) => ticket.setAttribute("data-status", nextStatusId(state.settings.statuses, ticket.getAttribute("data-status"))));
+  if (!note?.sprint || note.deletedAt !== null) return;
+  const updated = { ...note, sprint, updatedAt: Date.now() };
+  notes.set(updated.id, updated);
+  saves.schedule(updated.id);
+  renderList();
+  byId("note-date").textContent = formatEditedDate(updated.updatedAt);
+  document.title = `${noteTitleOf(updated)} – Notelet`;
 }
 
 function openSettings() {
   const note = notes.get(state.currentId);
   if (!note?.sprint) return;
-  openSprintSettings({ dialog: byId("sprint-settings"), sprint: note.sprint, settings: state.settings, onSave: saveSprintSettings });
+  openSprintSettings({ dialog: byId("sprint-settings"), sprint: note.sprint, statuses: state.settings.statuses, onSave: saveSprintSettings });
 }
 
-// Section headings show the shared labels and cannot be typed into or deleted.
-function syncSectionHeadings() {
-  for (const heading of byId("editor").querySelectorAll("h2[data-section]")) {
-    const label = state.settings.sections.find((section) => section.id === heading.dataset.section)?.label;
-    if (heading.contentEditable !== "false") heading.contentEditable = "false";
-    if (label && heading.textContent !== label) heading.textContent = label;
-  }
-}
-
-function saveSprintSettings({ sprint, statuses, sections }) {
-  state.settings = { statuses, sections };
+function saveSprintSettings({ sprint, statuses }) {
+  state.settings = { statuses };
   store.saveSettings(state.settings).catch(reportSaveError);
   updateCurrent(() => ({ sprint }));
   renderAll();
@@ -256,25 +231,12 @@ function saveSprintSettings({ sprint, statuses, sections }) {
 function onEditorChange(changedHtml) {
   const note = notes.get(state.currentId);
   if (!note || note.deletedAt !== null || note.html === changedHtml) return;
-  const html = note.sprint ? restoreMissingSections(changedHtml) : changedHtml;
-  const updated = { ...note, html, updatedAt: Date.now() };
+  const updated = { ...note, html: changedHtml, updatedAt: Date.now() };
   notes.set(updated.id, updated);
   saves.schedule(updated.id);
   renderList();
   byId("note-date").textContent = formatEditedDate(updated.updatedAt);
   renderNoteDetails(updated);
-}
-
-// Deleting across a locked heading (a big selection, a cut) can still remove it; put the
-// sections back rather than leave a sprint note that counts nothing.
-function restoreMissingSections(html) {
-  const editorElement = byId("editor");
-  const complete = state.settings.sections.every((section) => editorElement.querySelector(`h2[data-section="${section.id}"] + ul.checklist`));
-  if (complete) return html;
-  const repaired = ensureSprintSections(html, state.settings);
-  editor.load(repaired);
-  syncSectionHeadings();
-  return repaired;
 }
 
 function saveNow(id) {
@@ -312,7 +274,8 @@ function createNote() {
 }
 
 function createSprint() {
-  openCreated(newSprint(Date.now(), [...notes.values()], state.settings));
+  openCreated(newSprint(Date.now(), [...notes.values()]));
+  tracker.focusTitle();
 }
 
 function openCreated(note) {
@@ -321,7 +284,7 @@ function openCreated(note) {
   notes.set(note.id, note);
   store.saveNotes([note]).catch(reportSaveError);
   selectNote(note.id);
-  editor.focusStart();
+  if (!note.sprint) editor.focusStart();
 }
 
 function clearSearch() {
@@ -373,7 +336,8 @@ async function importNotes() {
   }
   await adoptImportedSettings(result.settings);
   const today = new Date();
-  const imported = result.notes.map((note) => upgradeNote({ ...note, html: sanitizeHtml(note.html) }, state.settings, today));
+  const upgradeSettings = { statuses: state.settings.statuses, sections: legacySections(result.settings) };
+  const imported = result.notes.map((note) => upgradeNote({ ...note, html: sanitizeHtml(note.html) }, upgradeSettings, today));
   await store.saveNotes(imported);
   imported.forEach((note) => {
     saves.cancel(note.id);
@@ -416,20 +380,19 @@ function refreshAfterOutsideChange(changedIds) {
     selectFirstVisible();
     return;
   }
-  if (changedIds.includes(current.id) && !isEditingCurrentNote()) editor.load(current.html);
+  if (changedIds.includes(current.id) && !isEditingCurrentNote()) loadEditor(current);
   renderAll();
 }
 
-// A points field open in the chip layer counts as editing, so a save from another tab
-// waits instead of replacing the ticket the field belongs to.
+// A focused tracker field counts as editing, so a save from another tab waits instead of
+// replacing the task being typed into.
 function isEditingCurrentNote() {
-  return editor.isFocused() || byId("ticket-chips").contains(document.activeElement);
+  return editor.isFocused() || tracker.isEditing();
 }
 
 function wireControls() {
   closeOnOutsideClick(byId("help"));
   closeOnOutsideClick(byId("sprint-settings"));
-  wireTicketDragging({ editorElement: byId("editor"), onMove: (item, destination) => editor.moveTicket(item, destination) });
   wireEditorActions();
   wireButtons();
   wireSidebar();

@@ -3,21 +3,17 @@ import { DEFAULT_SECTIONS } from "../extension/sections.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  DEFAULT_STATUSES, addDays, isIsoDate, isValidSprint, isValidStatus, newSprint, nextStatusId, parsePoints, sprintStats,
-  normalizeSettings, sameSettings, statusFor, ticketSearchText, upgradeNote, validateSprintSettings,
+  DEFAULT_STATUSES, addDays, isIsoDate, isValidSprint, isValidStatus, newSprint, parsePoints, sprintStats,
+  normalizeSettings, sameSettings, statusFor, upgradeNote, validateSprintSettings,
 } from "../extension/sprint.js";
 
-const SPRINT = { start: "2026-09-28", end: "2026-10-09", target: 18 };
-const ticket = (attrs, text = "t") => `<li ${attrs}>${text}</li>`;
-const sprintHtml = (...items) => `<h1>Sprint</h1><ul class="checklist">${items.join("")}</ul>`;
+const task = (points, done, status = "s1") => ({ id: crypto.randomUUID(), title: "t", points, status, done });
+const group = (counts, ...tasks) => ({ id: crypto.randomUUID(), name: "g", counts, collapsed: false, tasks });
+const SPRINT = { start: "2026-09-28", end: "2026-10-09", target: 18, title: "Task Tracking", groups: [] };
+const withTasks = (...tasks) => ({ ...SPRINT, groups: [group(true, ...tasks)] });
 
-test("only ticked tickets with points count as completed", () => {
-  const html = sprintHtml(
-    ticket('data-checked="true" data-points="5"'),
-    ticket('data-checked="false" data-points="8"'),
-    ticket('data-checked="true"'),
-  );
-  const stats = sprintStats(html, { sprint: SPRINT, today: new Date(2026, 9, 8), sections: DEFAULT_SECTIONS });
+test("only ticked tasks with points count as completed", () => {
+  const stats = sprintStats(withTasks(task(5, true), task(8, false), task(null, true)), new Date(2026, 9, 8));
   assert.deepEqual(
     { completed: stats.completed, missing: stats.missing, over: stats.over, unpointed: stats.unpointed },
     { completed: 5, missing: 13, over: 0, unpointed: 1 },
@@ -25,27 +21,22 @@ test("only ticked tickets with points count as completed", () => {
 });
 
 test("going past the target reports how far over", () => {
-  const html = sprintHtml(ticket('data-checked="true" data-points="12.5"'), ticket('data-checked="true" data-points="7"'));
-  const stats = sprintStats(html, { sprint: SPRINT, today: new Date(2026, 9, 8), sections: DEFAULT_SECTIONS });
+  const stats = sprintStats(withTasks(task(12.5, true), task(7, true)), new Date(2026, 9, 8));
   assert.equal(stats.completed, 19.5);
   assert.equal(stats.missing, 0);
   assert.equal(stats.over, 1.5);
 });
 
 test("sprint days count Monday to Friday only and stay within the sprint", () => {
-  const html = sprintHtml();
-  assert.deepEqual(pick(sprintStats(html, { sprint: SPRINT, today: new Date(2026, 9, 8), sections: DEFAULT_SECTIONS })), { days: 10, day: 9, left: 1 });
-  assert.deepEqual(pick(sprintStats(html, { sprint: SPRINT, today: new Date(2026, 8, 1), sections: DEFAULT_SECTIONS })), { days: 10, day: 0, left: 10 });
-  assert.deepEqual(pick(sprintStats(html, { sprint: SPRINT, today: new Date(2026, 11, 1), sections: DEFAULT_SECTIONS })), { days: 10, day: 10, left: 0 });
-  assert.deepEqual(pick(sprintStats(html, { sprint: SPRINT, today: new Date(2026, 9, 3), sections: DEFAULT_SECTIONS })), { days: 10, day: 5, left: 5 });
+  assert.deepEqual(pick(sprintStats(SPRINT, new Date(2026, 9, 8))), { days: 10, day: 9, left: 1 });
+  assert.deepEqual(pick(sprintStats(SPRINT, new Date(2026, 8, 1))), { days: 10, day: 0, left: 10 });
+  assert.deepEqual(pick(sprintStats(SPRINT, new Date(2026, 11, 1))), { days: 10, day: 10, left: 0 });
+  assert.deepEqual(pick(sprintStats(SPRINT, new Date(2026, 9, 3))), { days: 10, day: 5, left: 5 });
 });
 const pick = ({ days, day, left }) => ({ days, day, left });
 
-test("an unknown status shows as the first and cycles to the second", () => {
+test("an unknown status shows as the first", () => {
   assert.equal(statusFor(DEFAULT_STATUSES, "gone").id, "s1");
-  assert.equal(nextStatusId(DEFAULT_STATUSES, "gone"), "s2");
-  assert.equal(nextStatusId(DEFAULT_STATUSES, "s5"), "s1");
-  assert.equal(nextStatusId(DEFAULT_STATUSES, "s2"), "s3");
 });
 
 test("points input accepts decimals with a comma, clears on empty and rejects the rest", () => {
@@ -63,23 +54,23 @@ test("dates add across months and invalid dates are rejected", () => {
   assert.equal(isIsoDate("28/09/2026"), false);
 });
 
-test("search text lists each ticket's status label", () => {
-  const html = sprintHtml(ticket('data-status="s3"'), ticket(""));
-  assert.equal(ticketSearchText(html, DEFAULT_STATUSES), "In Review Todo");
-});
-
 const NOW = new Date(2026, 9, 8, 15, 0).getTime();
 const SETTINGS = { statuses: DEFAULT_STATUSES, sections: DEFAULT_SECTIONS };
-const sprintNote = (sprint, deletedAt = null) => ({ id: crypto.randomUUID(), html: "<h1>Sprint</h1>", pinned: false, updatedAt: 1, deletedAt, sprint });
+const sprintNote = (sprint, deletedAt = null) => ({ id: crypto.randomUUID(), html: "<p><br></p>", pinned: false, updatedAt: 1, deletedAt, sprint });
+const dates = ({ start, end, target }) => ({ start, end, target });
+const groupShape = (sprint) => sprint.groups.map(({ name, counts, tasks }) => [name, counts, tasks.length]);
 
-test("a first sprint starts today and lasts two weeks with target 18", () => {
-  const note = newSprint(NOW, [], SETTINGS);
-  assert.deepEqual(note.sprint, { start: "2026-10-08", end: "2026-10-21", target: 18 });
-  assert.equal(
-    note.html,
-    '<h1>Sprint</h1><h2 data-section="last">Last Sprint</h2><ul class="checklist"></ul>'
-      + '<h2 data-section="current">Current Sprint</h2><ul class="checklist"><li data-checked="false" data-status="s1"><br></li></ul>',
-  );
+test("a first tracker starts today, lasts two weeks with target 18 and has empty Last and Current Sprint groups", () => {
+  const note = newSprint(NOW, []);
+  assert.deepEqual(dates(note.sprint), { start: "2026-10-08", end: "2026-10-21", target: 18 });
+  assert.equal(note.sprint.title, "Task Tracking");
+  assert.deepEqual(groupShape(note.sprint), [["Last Sprint", false, 0], ["Current Sprint", true, 0]]);
+  assert.equal(note.html, "<p><br></p>");
+});
+
+test("a new tracker copies the latest tracker's group names and count settings, not its tasks", () => {
+  const latest = sprintNote({ ...SPRINT, groups: [group(true, task(3, true)), { ...group(false), name: "Support" }] });
+  assert.deepEqual(groupShape(newSprint(NOW, [latest]).sprint), [["g", true, 0], ["Support", false, 0]]);
 });
 
 test("a new sprint starts the next working day after the latest live sprint and lasts ten working days", () => {
@@ -88,7 +79,7 @@ test("a new sprint starts the next working day after the latest live sprint and 
     sprintNote({ start: "2026-09-28", end: "2026-10-09", target: 16 }),
     sprintNote({ start: "2026-12-01", end: "2026-12-14", target: 99 }, 5),
   ];
-  assert.deepEqual(newSprint(NOW, notes, SETTINGS).sprint, { start: "2026-10-12", end: "2026-10-23", target: 16 });
+  assert.deepEqual(dates(newSprint(NOW, notes).sprint), { start: "2026-10-12", end: "2026-10-23", target: 16 });
 });
 
 test("settings need an end on or after the start, a positive target and labelled statuses", () => {
@@ -119,47 +110,27 @@ test("settings with the same statuses are the same whatever the key order", () =
 
 test("a first sprint created on a weekend starts the following Monday", () => {
   const saturday = new Date(2026, 9, 10, 9, 0).getTime();
-  assert.deepEqual(newSprint(saturday, [], SETTINGS).sprint, { start: "2026-10-12", end: "2026-10-23", target: 18 });
+  assert.deepEqual(dates(newSprint(saturday, []).sprint), { start: "2026-10-12", end: "2026-10-23", target: 18 });
 });
 
-test("only counted sections add to the points", () => {
-  const html = '<h2 data-section="last">L</h2><ul class="checklist"><li data-checked="true" data-points="3">old</li></ul>'
-    + '<h2 data-section="current">C</h2><ul class="checklist"><li data-checked="true" data-points="5">a</li><li data-checked="false">b</li></ul>';
-  const onlyCurrent = sprintStats(html, { sprint: SPRINT, today: new Date(2026, 9, 8), sections: DEFAULT_SECTIONS });
-  assert.deepEqual([onlyCurrent.completed, onlyCurrent.unpointed], [5, 1]);
-  const both = DEFAULT_SECTIONS.map((section) => ({ ...section, counts: true }));
-  assert.equal(sprintStats(html, { sprint: SPRINT, today: new Date(2026, 9, 8), sections: both }).completed, 8);
+test("only groups that count add to the points", () => {
+  const sprint = { ...SPRINT, groups: [group(false, task(3, true)), group(true, task(5, true), task(null, false))] };
+  assert.deepEqual([sprintStats(sprint, new Date(2026, 9, 8)).completed, sprintStats(sprint, new Date(2026, 9, 8)).unpointed], [5, 1]);
 });
 
-test("section labels typed by the user are escaped in a new sprint", () => {
-  const sections = [{ ...DEFAULT_SECTIONS[0], label: "<b>Old</b>" }, DEFAULT_SECTIONS[1]];
-  assert.match(newSprint(NOW, [], { statuses: DEFAULT_STATUSES, sections }).html, /&lt;b&gt;Old&lt;\/b&gt;/);
-});
-
-test("settings saved before sections existed get the default sections", () => {
-  assert.deepEqual(normalizeSettings({ statuses: DEFAULT_STATUSES }), { statuses: DEFAULT_STATUSES, sections: DEFAULT_SECTIONS.map((s) => ({ ...s })) });
-  const custom = [{ ...DEFAULT_SECTIONS[0], counts: true }, DEFAULT_SECTIONS[1]];
-  assert.deepEqual(normalizeSettings({ statuses: DEFAULT_STATUSES, sections: custom }).sections, custom);
-});
-
-test("settings differ when a section label or count flag differs", () => {
-  const base = { statuses: DEFAULT_STATUSES, sections: DEFAULT_SECTIONS };
-  assert.equal(sameSettings(base, { statuses: DEFAULT_STATUSES, sections: DEFAULT_SECTIONS.map((s) => ({ ...s })) }), true);
-  assert.equal(sameSettings(base, { statuses: DEFAULT_STATUSES, sections: [{ ...DEFAULT_SECTIONS[0], counts: true }, DEFAULT_SECTIONS[1]] }), false);
-});
-
-test("upgrading a sprint note adds the sections; upgrading a Target note converts it first", () => {
-  const settings = { statuses: DEFAULT_STATUSES, sections: DEFAULT_SECTIONS };
+test("upgrading a Target note makes a tracker with its tickets as tasks; trackers and plain notes are left alone", () => {
   const target = { id: "t", html: '<h1>Plan</h1><p>Target: 9</p><ul class="checklist"><li data-checked="true">a (2)</li></ul>', pinned: false, updatedAt: NOW, deletedAt: null };
-  const upgraded = upgradeNote(target, settings, new Date(2026, 9, 8));
+  const upgraded = upgradeNote(target, SETTINGS, new Date(2026, 9, 8));
   assert.equal(upgraded.sprint.target, 9);
-  assert.match(upgraded.html, /<h2 data-section="last">Last Sprint<\/h2><ul class="checklist"><\/ul><h2 data-section="current">Current Sprint<\/h2><ul class="checklist"><li /);
+  assert.equal(upgraded.sprint.title, "Plan");
+  assert.deepEqual(upgraded.sprint.groups.map((g) => g.tasks.map(({ title, points, done }) => [title, points, done])), [[], [["a", 2, true]]]);
+  assert.equal(upgradeNote(upgraded, SETTINGS, new Date(2026, 9, 8)), upgraded);
   const plain = { ...target, html: "<h1>Ideas</h1>" };
-  assert.equal(upgradeNote(plain, settings, new Date(2026, 9, 8)), plain);
+  assert.equal(upgradeNote(plain, SETTINGS, new Date(2026, 9, 8)), plain);
 });
 
-test("every section needs a name", () => {
-  const valid = { start: "2026-09-28", end: "2026-10-09", target: 18, statuses: DEFAULT_STATUSES, sections: DEFAULT_SECTIONS };
-  assert.equal(validateSprintSettings(valid), null);
-  assert.match(validateSprintSettings({ ...valid, sections: [{ ...DEFAULT_SECTIONS[0], label: "  " }, DEFAULT_SECTIONS[1]] }), /section/);
+test("stored groups are checked field by field", () => {
+  assert.equal(isValidSprint({ ...SPRINT, groups: [group(true, task(2, false))] }), true);
+  assert.equal(isValidSprint({ ...SPRINT, groups: [{ ...group(true), counts: "yes" }] }), false);
+  assert.equal(isValidSprint({ ...SPRINT, groups: [group(true, { ...task(2, false), status: "Bad Id" })] }), false);
 });

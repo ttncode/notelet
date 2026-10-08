@@ -1,11 +1,11 @@
-import { defaultSettings, normalizeSettings, upgradeNote } from "./sprint.js";
+import { defaultSettings, legacySections, normalizeSettings, upgradeNote } from "./sprint.js";
 
 const NOTE_PREFIX = "note:";
 const SCHEMA_KEY = "schemaVersion";
 const UI_KEY = "ui";
 const SETTINGS_KEY = "settings";
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const DEFAULT_UI = Object.freeze({ sidebarWidth: 280, sidebarHidden: false, lastNoteId: null, scrollTop: 0, theme: "system" });
 
 export function createStore(area) {
@@ -25,7 +25,8 @@ async function load(area, today) {
   if (version > SCHEMA_VERSION) throw new Error("These notes were saved by a newer version of Notelet. Update the extension to open them.");
   const settings = stored[SETTINGS_KEY] ? normalizeSettings(stored[SETTINGS_KEY]) : defaultSettings();
   const storedNotes = Object.entries(stored).filter(([key]) => key.startsWith(NOTE_PREFIX)).map(([, note]) => note);
-  const notes = version < SCHEMA_VERSION ? storedNotes.map((note) => upgradeNote(note, settings, today)) : storedNotes;
+  const upgradeSettings = { statuses: settings.statuses, sections: legacySections(stored[SETTINGS_KEY]) };
+  const notes = version < SCHEMA_VERSION ? storedNotes.map((note) => upgradeNote(note, upgradeSettings, today)) : storedNotes;
   if (version < SCHEMA_VERSION) await saveMigration(area, settings, notes.filter((note, index) => note !== storedNotes[index]));
   return { notes, ui: { ...DEFAULT_UI, ...stored[UI_KEY] }, settings };
 }
