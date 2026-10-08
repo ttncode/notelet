@@ -349,8 +349,14 @@ function refreshAfterOutsideChange(changedIds) {
     selectFirstVisible();
     return;
   }
-  if (changedIds.includes(current.id) && !editor.isFocused()) editor.load(current.html);
+  if (changedIds.includes(current.id) && !isEditingCurrentNote()) editor.load(current.html);
   renderAll();
+}
+
+// A points field open in the chip layer counts as editing, so a save from another tab
+// waits instead of replacing the ticket the field belongs to.
+function isEditingCurrentNote() {
+  return editor.isFocused() || byId("ticket-chips").contains(document.activeElement);
 }
 
 function wireControls() {
