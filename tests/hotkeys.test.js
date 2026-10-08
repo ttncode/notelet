@@ -43,3 +43,7 @@ test("labels use each platform's modifier names", () => {
   assert.equal(hotkeyLabel(checklist, false), "Ctrl+Shift+L");
   assert.equal(hotkeyLabel(checklist, true), "⌘⇧L");
 });
+
+test("Alt+S starts a new sprint", () => {
+  assert.equal(matchHotkey(key("KeyS", { altKey: true }), false), "newSprint");
+});

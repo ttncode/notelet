@@ -1,6 +1,7 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { parseHtml } from "../extension/model.js";
 import { sanitizeHtml } from "../extension/sanitize.js";
 
 test("keeps the editor's own structure unchanged", () => {
@@ -54,4 +55,16 @@ test("loose text and inline formatting at the top level are wrapped in paragraph
 
 test("whitespace between blocks does not create empty paragraphs", () => {
   assert.equal(sanitizeHtml("<p>a</p>\n  <p>b</p>"), "<p>a</p><p>b</p>");
+});
+
+test("ticket points and status attributes are kept only when well formed", () => {
+  const kept = parseHtml(sanitizeHtml('<ul class="checklist"><li data-checked="true" data-points="2.5" data-status="s-1a2b">a</li></ul>')).body.querySelector("li");
+  assert.deepEqual(
+    ["data-checked", "data-points", "data-status"].map((name) => kept.getAttribute(name)),
+    ["true", "2.5", "s-1a2b"],
+  );
+  assert.equal(
+    sanitizeHtml('<ul class="checklist"><li data-points="lots" data-status="<b>">a</li></ul>'),
+    '<ul class="checklist"><li>a</li></ul>',
+  );
 });

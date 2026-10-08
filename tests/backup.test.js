@@ -1,16 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { backupFileName, createBackup, parseBackup } from "../extension/backup.js";
+import { defaultSettings } from "../extension/sprint.js";
+
+const SETTINGS = defaultSettings();
 
 const NOW = new Date(2026, 9, 8, 9, 30);
 const notes = [
   { id: "a", html: "<h1>Weekly Plan</h1><p>Target: 18</p>", pinned: true, updatedAt: 1, deletedAt: null },
   { id: "b", html: "<h1>Old</h1>", pinned: false, updatedAt: 2, deletedAt: 3 },
 ];
-const backupWith = (overrides) => JSON.stringify({ app: "notelet", version: 1, exportedAt: NOW.toISOString(), notes, ...overrides });
+const backupWith = (overrides) => JSON.stringify({ app: "notelet", version: 2, exportedAt: NOW.toISOString(), settings: SETTINGS, notes, ...overrides });
 
 test("an export imports back to the same notes", () => {
-  assert.deepEqual(parseBackup(createBackup(notes, NOW)), { ok: true, notes });
+  assert.deepEqual(parseBackup(createBackup(notes, SETTINGS, NOW)), { ok: true, version: 2, notes, settings: SETTINGS });
 });
 
 test("unknown note fields are dropped on import", () => {
@@ -28,7 +31,7 @@ test("JSON from another app is rejected", () => {
 });
 
 test("a backup from a newer version asks for an update", () => {
-  assert.match(parseBackup(backupWith({ version: 2 })).error, /newer version/);
+  assert.match(parseBackup(backupWith({ version: 3 })).error, /newer version/);
 });
 
 test("a backup without a notes list is rejected", () => {
@@ -47,4 +50,21 @@ test("one damaged note rejects the whole file and names it", () => {
 
 test("backup files are named after the local date", () => {
   assert.equal(backupFileName(NOW), "notelet-backup-2026-10-08.json");
+});
+
+test("sprint data survives a round trip and a broken sprint rejects the file", () => {
+  const sprintNote = { ...notes[0], sprint: { start: "2026-09-28", end: "2026-10-09", target: 18 } };
+  assert.deepEqual(parseBackup(createBackup([sprintNote], SETTINGS, NOW)).notes, [sprintNote]);
+  const broken = { ...sprintNote, sprint: { start: "2026-10-09", end: "2026-09-28", target: 18 } };
+  assert.equal(parseBackup(backupWith({ notes: [broken] })).ok, false);
+});
+
+test("a version 2 backup needs a valid status list", () => {
+  assert.equal(parseBackup(backupWith({ settings: { statuses: [] } })).ok, false);
+  assert.equal(parseBackup(backupWith({ settings: { statuses: [{ id: "s1", label: "", color: "#000000" }] } })).ok, false);
+});
+
+test("a version 1 backup still imports, without settings", () => {
+  const v1 = JSON.stringify({ app: "notelet", version: 1, exportedAt: NOW.toISOString(), notes });
+  assert.deepEqual(parseBackup(v1), { ok: true, version: 1, notes, settings: null });
 });
