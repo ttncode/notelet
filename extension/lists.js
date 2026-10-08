@@ -60,3 +60,10 @@ function removeEmptyLists(list) {
     current = parent;
   }
 }
+
+// Splitting at the very start of an item, Chrome inserts the new item before it and keeps
+// the caret in the original, so "the item under the caret" is not always the new one.
+export function itemCreatedBySplit(itemBefore, itemAfter) {
+  if (!itemBefore || !itemAfter) return null;
+  return itemAfter === itemBefore ? itemBefore.previousElementSibling : itemAfter;
+}
