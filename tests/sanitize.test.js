@@ -1,0 +1,49 @@
+import "./dom.js";
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { sanitizeHtml } from "../extension/sanitize.js";
+
+test("keeps the editor's own structure unchanged", () => {
+  const html = '<h1>T</h1><h2>H</h2><h3>S</h3><p>a <b>b</b> <i>c</i> <u>d</u> <s>e</s><br></p>'
+    + '<ul class="checklist"><li data-checked="true">x</li></ul><ul class="dashed"><li>y</li></ul>'
+    + '<ol><li>z</li></ol><pre>code</pre><p><a href="https://example.test/">link</a></p>';
+  assert.equal(sanitizeHtml(html), html);
+});
+
+test("drops scripts, styles, images and frames with their content", () => {
+  const html = '<p>a</p><script>alert(1)</script><style>p{}</style><img src="x" onerror="alert(1)"><iframe src="https://x.test"></iframe>';
+  assert.equal(sanitizeHtml(html), "<p>a</p>");
+});
+
+test("strips event handlers, inline styles and classes", () => {
+  assert.equal(sanitizeHtml('<p onclick="alert(1)" style="color:red" class="x">a</p>'), "<p>a</p>");
+});
+
+test("unwraps links that are not http, https or mailto", () => {
+  const html = '<a href="javascript:alert(1)">x</a><a href=" JaVaScRiPt:alert(1)">y</a><a href="/relative">z</a><a href="mailto:a@b.test">m</a>';
+  assert.equal(sanitizeHtml(html), 'xyz<a href="mailto:a@b.test">m</a>');
+});
+
+test("maps equivalent tags onto the editor's own", () => {
+  assert.equal(sanitizeHtml("<strong>a</strong><em>b</em><del>c</del><h5>d</h5>"), "<b>a</b><i>b</i><s>c</s><h3>d</h3>");
+});
+
+test("turns web page wrappers into paragraphs and drops spans", () => {
+  const html = '<div><span style="font-size:20px">Hello</span></div><div><p>Para</p></div>';
+  assert.equal(sanitizeHtml(html), "<p>Hello</p><p>Para</p>");
+});
+
+test("turns table rows into paragraphs", () => {
+  assert.equal(sanitizeHtml("<table><tr><td>a</td><td>b</td></tr><tr><td>c</td></tr></table>"), "<p>a b </p><p>c </p>");
+});
+
+test("keeps only known list classes and checked values", () => {
+  assert.equal(
+    sanitizeHtml('<ul class="todo checklist"><li data-checked="yes" data-x="1">a</li></ul>'),
+    '<ul class="checklist"><li>a</li></ul>',
+  );
+});
+
+test("text that looks like markup stays text", () => {
+  assert.equal(sanitizeHtml("<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>"), "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>");
+});
