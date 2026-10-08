@@ -1,6 +1,6 @@
 import { History } from "./history.js";
 import { matchHotkey } from "./hotkeys.js";
-import { liftListOutOfParagraph } from "./lists.js";
+import { liftListOutOfParagraph, setBlockType } from "./lists.js";
 import { EMPTY_NOTE_HTML } from "./model.js";
 import { sanitizeHtml } from "./sanitize.js";
 import {
@@ -68,7 +68,7 @@ export class NoteEditor {
   #apply(action) {
     if (Object.hasOwn(BLOCK_ACTIONS, action)) return this.#setBlock(BLOCK_ACTIONS[action]);
     if (Object.hasOwn(INLINE_ACTIONS, action)) return document.execCommand(INLINE_ACTIONS[action]);
-    if (LIST_ACTIONS.has(action)) return this.#toggleList(action);
+    if (LIST_ACTIONS.has(action)) return this.#keepCaretInBlock(() => this.#toggleList(action));
     if (action === "toggleCheck") return this.#toggleCheckAtCaret();
     throw new Error(`Unknown editor action: ${action}`);
   }
@@ -172,9 +172,10 @@ export class NoteEditor {
   }
 
   #setBlock(tag) {
-    const list = caretElement(this.#element)?.closest("ul,ol");
-    if (list) document.execCommand(listCommand(list));
-    document.execCommand("formatBlock", false, tag);
+    const block = caretBlock(this.#element);
+    if (!block) return;
+    const offset = caretOffset(block);
+    setCaretOffset(setBlockType(block, tag), offset);
   }
 
   #toggleList(kind) {
@@ -184,7 +185,7 @@ export class NoteEditor {
       return;
     }
     const block = caretBlock(this.#element);
-    if (!current && block && block.tagName !== "P" && block.tagName !== "DIV") document.execCommand("formatBlock", false, "p");
+    if (!current && block && block.tagName !== "P" && block.tagName !== "DIV") setCaretOffset(setBlockType(block, "p"), 0);
     if (!current || (current.tagName === "OL") !== (kind === "numbered")) {
       document.execCommand(kind === "numbered" ? "insertOrderedList" : "insertUnorderedList");
     }
@@ -194,6 +195,15 @@ export class NoteEditor {
     const { focusNode, focusOffset } = document.getSelection();
     liftListOutOfParagraph(list);
     placeCaret(focusNode, focusOffset);
+  }
+
+  // Chrome's list and block commands rebuild the line and drop the caret at its start.
+  #keepCaretInBlock(change) {
+    const before = document.getSelection().isCollapsed ? caretBlock(this.#element) : null;
+    const offset = before ? caretOffset(before) : null;
+    change();
+    const after = caretBlock(this.#element);
+    if (after && offset !== null) setCaretOffset(after, offset);
   }
 
   #matchNestedListKind() {
@@ -254,6 +264,7 @@ export class NoteEditor {
 
   #checkpoint() {
     this.#history.record(this.#snapshot());
+    this.#lastInput = { at: 0, kind: "" };
   }
 
   #snapshot() {
