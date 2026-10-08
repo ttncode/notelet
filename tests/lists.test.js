@@ -2,7 +2,9 @@ import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseHtml } from "../extension/model.js";
-import { itemCreatedBySplit, liftListOutOfParagraph, setBlockType } from "../extension/lists.js";
+import {
+  checkboxForShortcut, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType,
+} from "../extension/lists.js";
 
 function paragraphWith(...children) {
   const doc = parseHtml("");
@@ -103,4 +105,37 @@ test("no list item around the caret means nothing to reset", () => {
   const [first] = twoItems();
   assert.equal(itemCreatedBySplit(null, null), null);
   assert.equal(itemCreatedBySplit(first, null), null);
+});
+
+test("Notes list shortcuts map to list kinds and nothing else does", () => {
+  assert.equal(listKindForShortcut("-"), "dashed");
+  assert.equal(listKindForShortcut("*"), "bulleted");
+  assert.equal(listKindForShortcut("•"), "bulleted");
+  assert.equal(listKindForShortcut("1."), "numbered");
+  assert.equal(listKindForShortcut("1)"), "numbered");
+  assert.equal(listKindForShortcut("2."), null);
+  assert.equal(listKindForShortcut("a -"), null);
+});
+
+test("checkbox shortcuts say whether the item starts ticked", () => {
+  assert.deepEqual(checkboxForShortcut("[ ]"), { checked: false });
+  assert.deepEqual(checkboxForShortcut("[]"), { checked: false });
+  assert.deepEqual(checkboxForShortcut("[x]"), { checked: true });
+  assert.deepEqual(checkboxForShortcut("[X]"), { checked: true });
+  assert.equal(checkboxForShortcut("[y]"), null);
+});
+
+test("removing leading characters works across text nodes and keeps formatting", () => {
+  const paragraph = parseHtml("<p>- <b>bold</b> rest</p>").body.querySelector("p");
+  removeLeadingText(paragraph, 2);
+  assert.equal(paragraph.innerHTML, "<b>bold</b> rest");
+  const split = parseHtml("<p><i>[</i>x] done</p>").body.querySelector("p");
+  removeLeadingText(split, 4);
+  assert.equal(split.innerHTML, "<i></i>done");
+});
+
+test("an empty leftover after the list does not become a blank paragraph", () => {
+  const { body, list } = paragraphWith("list", "");
+  liftListOutOfParagraph(list);
+  assert.equal(body.innerHTML, "<ul><li></li></ul>");
 });

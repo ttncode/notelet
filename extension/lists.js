@@ -6,7 +6,7 @@ export function liftListOutOfParagraph(list) {
   const after = paragraph.ownerDocument.createElement("p");
   while (list.nextSibling) after.append(list.nextSibling);
   paragraph.after(list);
-  if (after.hasChildNodes()) list.after(after);
+  if (after.textContent !== "" || after.querySelector("*")) list.after(after);
   if (paragraph.textContent === "") paragraph.remove();
 }
 
@@ -66,4 +66,26 @@ function removeEmptyLists(list) {
 export function itemCreatedBySplit(itemBefore, itemAfter) {
   if (!itemBefore || !itemAfter) return null;
   return itemAfter === itemBefore ? itemBefore.previousElementSibling : itemAfter;
+}
+
+const LIST_SHORTCUTS = { "-": "dashed", "*": "bulleted", "•": "bulleted", "1.": "numbered", "1)": "numbered" };
+const CHECKBOX_SHORTCUTS = { "[ ]": false, "[]": false, "[x]": true, "[X]": true };
+const TEXT_NODE = 3;
+
+export const listKindForShortcut = (prefix) => (Object.hasOwn(LIST_SHORTCUTS, prefix) ? LIST_SHORTCUTS[prefix] : null);
+
+export const checkboxForShortcut = (prefix) => (Object.hasOwn(CHECKBOX_SHORTCUTS, prefix) ? { checked: CHECKBOX_SHORTCUTS[prefix] } : null);
+
+export function removeLeadingText(element, count) {
+  let remaining = count;
+  for (const node of textNodesIn(element)) {
+    if (remaining === 0) return;
+    const removed = Math.min(remaining, node.textContent.length);
+    node.textContent = node.textContent.slice(removed);
+    remaining -= removed;
+  }
+}
+
+function textNodesIn(element) {
+  return [...element.childNodes].flatMap((node) => (node.nodeType === TEXT_NODE ? [node] : textNodesIn(node)));
 }
