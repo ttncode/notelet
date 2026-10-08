@@ -54,6 +54,12 @@ tools/package.sh          # build dist/notelet-<version>.zip
 
 Load the `extension/` folder unpacked to try changes, then click reload in `chrome://extensions`.
 
+Working in WSL? Chrome's folder picker cannot open `\\wsl.localhost` paths, so copy the folder to the Windows side and load the copy:
+
+```bash
+rsync -a --delete extension/ /mnt/c/Users/<you>/Notelet-dev/
+```
+
 ## License
 
 [MIT](LICENSE)
