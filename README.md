@@ -9,7 +9,7 @@ Notelet is an independent project and is not affiliated with or endorsed by Appl
 1. Download `notelet-<version>.zip` from [Releases](../../releases) and unzip it into a folder you will keep.
 2. Open `chrome://extensions` and turn on **Developer mode**.
 3. Click **Load unpacked** and choose the unzipped folder (the one containing `manifest.json`).
-4. Pin Notelet to the toolbar. To open it from the keyboard, set a shortcut at `chrome://extensions/shortcuts` (suggested: `Alt+Shift+N`).
+4. Pin Notelet to the toolbar. To open it from the keyboard, set a shortcut at `chrome://extensions/shortcuts` (suggested: `Alt+.`).
 
 Works the same in Edge (`edge://extensions`) and Brave (`brave://extensions`).
 
