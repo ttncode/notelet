@@ -1,4 +1,6 @@
 import { newNote, noteLines, noteTitle, ownText, parseHtml } from "./model.js";
+import { convertTicket } from "./ticket-text.js";
+import { countedTicketItems, defaultSections, ensureSprintSections, isValidSections } from "./sections.js";
 
 const DAY_MS = 86_400_000;
 const TICKET_SELECTOR = "ul.checklist > li";
@@ -11,13 +13,8 @@ const DEFAULT_TARGET = 18;
 const MAX_LABEL_LENGTH = 20;
 const STATUS_ID = /^[a-z0-9-]{1,24}$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-const ELEMENT_NODE = 1;
-const TEXT_NODE = 3;
-const LIST_TAGS = new Set(["UL", "OL"]);
 const LINE_BLOCKS = "h1,h2,h3,p,pre,li,div";
 const TARGET_LINE = /^Target:\s*(\d+(?:\.\d+)?)$/i;
-const POINTS_TOKEN = /\((\d+(?:[.,]\d+)?)\)/g;
-const WORD_TOKEN = /\(([^()]+)\)/g;
 const TITLE_RANGE = /(\d{1,2})\/(\d{1,2})\s*[-–]\s*(\d{1,2})\/(\d{1,2})/;
 
 export const DEFAULT_STATUSES = Object.freeze([
@@ -28,7 +25,11 @@ export const DEFAULT_STATUSES = Object.freeze([
   Object.freeze({ id: "s5", label: "Done", color: "#30d158" }),
 ]);
 
-export const defaultSettings = () => ({ statuses: DEFAULT_STATUSES.map((status) => ({ ...status })) });
+export const defaultSettings = () => ({ statuses: DEFAULT_STATUSES.map((status) => ({ ...status })), sections: defaultSections() });
+
+export function normalizeSettings(settings) {
+  return { statuses: settings.statuses, sections: isValidSections(settings.sections) ? settings.sections : defaultSections() };
+}
 
 export const statusFor = (statuses, id) => statuses.find((status) => status.id === id) ?? statuses[0];
 
@@ -82,8 +83,8 @@ function sprintDatesFrom(day) {
   return { start, end: addWorkingDays(start, SPRINT_WORKING_DAYS - 1) };
 }
 
-export function sprintStats(html, sprint, today) {
-  const tickets = ticketItems(html);
+export function sprintStats(html, { sprint, today, sections }) {
+  const tickets = countedTicketItems(parseHtml(html).body, sections).map(readTicket);
   const pointed = tickets.filter((ticket) => ticket.points !== null);
   const completed = roundPoints(pointed.filter((ticket) => ticket.checked).reduce((sum, ticket) => sum + ticket.points, 0));
   const days = Math.max(1, workingDaysBetween(sprint.start, sprint.end));
@@ -106,12 +107,14 @@ export function ticketSearchText(html, statuses) {
 }
 
 function ticketItems(html) {
-  return [...parseHtml(html).body.querySelectorAll(TICKET_SELECTOR)].map((item) => ({
-    checked: item.getAttribute("data-checked") === "true",
-    points: readPoints(item.getAttribute("data-points")),
-    status: item.getAttribute("data-status"),
-  }));
+  return [...parseHtml(html).body.querySelectorAll(TICKET_SELECTOR)].map(readTicket);
 }
+
+const readTicket = (item) => ({
+  checked: item.getAttribute("data-checked") === "true",
+  points: readPoints(item.getAttribute("data-points")),
+  status: item.getAttribute("data-status"),
+});
 
 function readPoints(value) {
   if (value === null || value === "") return null;
@@ -125,21 +128,24 @@ export const formatShortDate = (iso) => new Date(utcDay(iso)).toLocaleDateString
 
 export const formatSprintRange = (sprint) => `${formatShortDate(sprint.start)} – ${formatShortDate(sprint.end)}`;
 
-export function newSprint(now, notes, statuses) {
+export function newSprint(now, notes, { statuses, sections }) {
   const latest = notes
     .filter((note) => note.sprint && note.deletedAt === null)
     .sort((a, b) => b.sprint.end.localeCompare(a.sprint.end))[0];
   const dates = sprintDatesFrom(latest ? addDays(latest.sprint.end, 1) : isoDate(new Date(now)));
   const sprint = { ...dates, target: latest?.sprint.target ?? DEFAULT_TARGET };
-  const html = `<h1>Sprint</h1><ul class="checklist"><li data-checked="false" data-status="${statuses[0].id}"><br></li></ul>`;
+  const [last, current] = sections.map((section) => `<h2 data-section="${section.id}">${escapeHtml(section.label)}</h2>`);
+  const firstTicket = `<li data-checked="false" data-status="${statuses[0].id}"><br></li>`;
+  const html = `<h1>Sprint</h1>${last}<ul class="checklist"></ul>${current}<ul class="checklist">${firstTicket}</ul>`;
   return { ...newNote(now), html, sprint };
 }
 
-export function validateSprintSettings({ start, end, target, statuses }) {
+export function validateSprintSettings({ start, end, target, statuses, sections = [] }) {
   if (!isIsoDate(start) || !isIsoDate(end) || end < start) return "The end date must be on or after the start date.";
   if (!(Number.isFinite(target) && target > 0)) return "Target points must be more than 0.";
   if (statuses.length === 0) return "Keep at least one status.";
   if (statuses.some((status) => status.label.trim() === "")) return "Every status needs a label.";
+  if (sections.some((section) => section.label.trim() === "")) return "Every section needs a name.";
   return null;
 }
 
@@ -199,54 +205,20 @@ function toIso(year, month, day) {
 
 const defaultDates = (today) => sprintDatesFrom(isoDate(today));
 
-function convertTicket(item, statuses) {
-  const nodes = ownTextNodes(item);
-  const points = takeLastMatch(nodes, POINTS_TOKEN);
-  const status = takeStatus(nodes, statuses);
-  nodes.forEach((node) => { node.textContent = node.textContent.replace(/[ \t]{2,}/g, " "); });
-  if (nodes.length > 0) nodes.at(-1).textContent = nodes.at(-1).textContent.trimEnd();
-  if (points !== null) item.setAttribute("data-points", String(Number(points.replace(",", "."))));
-  item.setAttribute("data-status", (status ?? statuses[0]).id);
-}
-
-function ownTextNodes(element) {
-  return [...element.childNodes].flatMap((node) => {
-    if (node.nodeType === TEXT_NODE) return [node];
-    if (node.nodeType !== ELEMENT_NODE || LIST_TAGS.has(node.tagName)) return [];
-    return ownTextNodes(node);
-  });
-}
-
-function takeLastMatch(nodes, pattern) {
-  for (const node of [...nodes].reverse()) {
-    const match = [...node.textContent.matchAll(pattern)].at(-1);
-    if (match) {
-      cutMatch(node, match);
-      return match[1];
-    }
-  }
-  return null;
-}
-
-function takeStatus(nodes, statuses) {
-  const normalize = (label) => label.toLowerCase().replace(/\s+/g, "");
-  for (const node of nodes) {
-    for (const match of node.textContent.matchAll(WORD_TOKEN)) {
-      const status = statuses.find((candidate) => normalize(candidate.label) === normalize(match[1]));
-      if (status) {
-        cutMatch(node, match);
-        return status;
-      }
-    }
-  }
-  return null;
-}
-
-function cutMatch(node, match) {
-  node.textContent = node.textContent.slice(0, match.index) + node.textContent.slice(match.index + match[0].length);
-}
 
 export function sameSettings(first, second) {
-  const same = (a, b) => a.id === b.id && a.label === b.label && a.color === b.color;
-  return first.statuses.length === second.statuses.length && first.statuses.every((status, index) => same(status, second.statuses[index]));
+  const sameStatus = (a, b) => a.id === b.id && a.label === b.label && a.color === b.color;
+  const sameSection = (a, b) => a.id === b.id && a.label === b.label && a.counts === b.counts;
+  return sameList(first.statuses, second.statuses, sameStatus) && sameList(first.sections ?? [], second.sections ?? [], sameSection);
 }
+
+const sameList = (a, b, same) => a.length === b.length && a.every((item, index) => same(item, b[index]));
+
+export function upgradeNote(note, settings, today) {
+  const migrated = migrateTargetNote(note, settings.statuses, today);
+  if (!migrated.sprint) return migrated;
+  const html = ensureSprintSections(migrated.html, settings);
+  return html === note.html && migrated === note ? note : { ...migrated, html };
+}
+
+const escapeHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

@@ -68,3 +68,9 @@ test("ticket points and status attributes are kept only when well formed", () =>
     '<ul class="checklist"><li>a</li></ul>',
   );
 });
+
+test("section headings keep their section marker; other values are dropped", () => {
+  const kept = parseHtml(sanitizeHtml('<h2 data-section="current">Current Sprint</h2>')).body.querySelector("h2");
+  assert.equal(kept.getAttribute("data-section"), "current");
+  assert.equal(sanitizeHtml('<h2 data-section="evil">x</h2><p data-section="last">y</p>'), "<h2>x</h2><p>y</p>");
+});
