@@ -6,7 +6,7 @@ export function createSaveScheduler({ delayMs, maxWaitMs, save }) {
   function run(id) {
     clearTimeout(pending.get(id)?.timer);
     pending.delete(id);
-    save(id);
+    return save(id);
   }
 
   return {
@@ -21,8 +21,6 @@ export function createSaveScheduler({ delayMs, maxWaitMs, save }) {
       pending.delete(id);
     },
     isPending: (id) => pending.has(id),
-    flush() {
-      [...pending.keys()].forEach(run);
-    },
+    flush: () => Promise.all([...pending.keys()].map(run)),
   };
 }

@@ -98,6 +98,7 @@ button:disabled { cursor: default; }
 
 .editor-pane { grid-column: 3; display: flex; flex-direction: column; min-width: 0; }
 .toolbar { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; }
+body:not(.popup-view) #open-full-page { display: none; }
 body.viewing-deleted #format-button,
 body.viewing-deleted #checklist-button,
 body.viewing-deleted #pin-button,

@@ -43,3 +43,21 @@ test("flush saves every pending note now and cancel drops one", (t) => {
   mock.timers.tick(1000);
   assert.deepEqual(saved, ["a"]);
 });
+
+test("flush resolves only after every pending save has finished", async (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const finishers = [];
+  const scheduler = createSaveScheduler({ delayMs: 500, maxWaitMs: 5000, save: () => new Promise((resolve) => finishers.push(resolve)) });
+  scheduler.schedule("a");
+  scheduler.schedule("b");
+  let flushed = false;
+  const flushing = scheduler.flush();
+  assert.equal(typeof flushing?.then, "function");
+  flushing.then(() => { flushed = true; });
+  await Promise.resolve();
+  assert.equal(flushed, false);
+  finishers.forEach((finish) => finish());
+  await flushing;
+  assert.equal(flushed, true);
+});

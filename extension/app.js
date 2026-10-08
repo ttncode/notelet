@@ -18,6 +18,8 @@ const SAVE_MAX_WAIT_MS = 5000;
 const UI_SAVE_DELAY_MS = 300;
 const MENU_GAP_PX = 6;
 const VIEWPORT_MARGIN_PX = 8;
+const IS_POPUP = new URLSearchParams(location.search).get("view") === "popup";
+const FULL_PAGE_URL = chrome.runtime.getURL("notes.html");
 const IS_MAC = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platform);
 const SAVE_FAILED_MESSAGE = "Couldn't save your last change. Your text is still here — keep this tab open and try again, or export a backup.";
 
@@ -42,6 +44,7 @@ main().catch((error) => {
 });
 
 async function main() {
+  document.body.classList.toggle("popup-view", IS_POPUP);
   const loaded = await store.load();
   loaded.notes.forEach((note) => notes.set(note.id, note));
   state.ui = loaded.ui;
@@ -135,6 +138,20 @@ function renderList() {
 }
 
 const deletedGroups = (visible) => (visible.length > 0 ? [{ label: "Recently Deleted", notes: visible }] : []);
+
+// Saves first: closing the popup window would otherwise cut off a pending write.
+async function openFullPage() {
+  clearTimeout(uiSaveTimer);
+  await Promise.all([saves.flush(), store.saveUi(state.ui)]);
+  const [fullPage] = await chrome.runtime.getContexts({ contextTypes: ["TAB"], documentUrls: [FULL_PAGE_URL] });
+  if (fullPage) {
+    await chrome.tabs.update(fullPage.tabId, { active: true });
+    await chrome.windows.update(fullPage.windowId, { focused: true });
+  } else {
+    await chrome.tabs.create({ url: FULL_PAGE_URL });
+  }
+  await chrome.windows.remove((await chrome.windows.getCurrent()).id);
+}
 
 function cycleTheme() {
   const theme = nextTheme(state.ui.theme);
@@ -253,7 +270,7 @@ function onEditorChange(html) {
 
 function saveNow(id) {
   const note = notes.get(id);
-  if (note) store.saveNotes([note]).catch(reportSaveError);
+  return note ? store.saveNotes([note]).catch(reportSaveError) : undefined;
 }
 
 const flushSaves = () => saves.flush();
@@ -453,6 +470,7 @@ function wireButtons() {
     "back-button": () => layout.showList(),
     "deleted-toggle": toggleDeletedView,
     "theme-button": cycleTheme,
+    "open-full-page": () => openFullPage().catch((error) => console.error("Notelet: could not open the full page", error)),
     "export-button": exportNotes,
     "import-button": () => importNotes().catch(reportImportError),
     "help-button": () => openHelp({ dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version }),
