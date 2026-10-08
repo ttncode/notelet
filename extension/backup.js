@@ -49,11 +49,12 @@ function isValidNote(note) {
     && typeof note.pinned === "boolean"
     && Number.isFinite(note.updatedAt)
     && (note.deletedAt === null || Number.isFinite(note.deletedAt))
-    && (note.sprint === undefined || note.sprint === null || isValidSprint(note.sprint));
+    && (note.sprint === undefined || note.sprint === null || isValidSprint(note.sprint))
+    && (note.position === undefined || Number.isFinite(note.position));
 }
 
-function pickNoteFields({ id, html, pinned, updatedAt, deletedAt, sprint }) {
-  const note = { id, html, pinned, updatedAt, deletedAt };
+function pickNoteFields({ id, html, pinned, updatedAt, deletedAt, sprint, position }) {
+  const note = { id, html, pinned, updatedAt, deletedAt, ...(position === undefined ? {} : { position }) };
   return sprint ? { ...note, sprint: { start: sprint.start, end: sprint.end, target: sprint.target } } : note;
 }
 

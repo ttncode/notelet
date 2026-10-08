@@ -2,7 +2,8 @@ import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  EMPTY_NOTE_HTML, groupNotes, isEmptyNote, isExpired, newNote, noteLines, notePreview, noteText, noteTitle, remoteNotesToApply,
+  EMPTY_NOTE_HTML, isEmptyNote, isExpired, newNote, noteLines, notePreview, noteText, noteTitle, orderedGroups, placeNote,
+  remoteNotesToApply, stepNote,
 } from "../extension/model.js";
 
 const DAY_MS = 86_400_000;
@@ -38,30 +39,38 @@ test("new notes start empty with a title line", () => {
   assert.equal(created.pinned, false);
   assert.equal(created.deletedAt, null);
   assert.equal(created.updatedAt, NOW);
+  assert.equal(created.position, NOW);
   assert.match(created.id, /^[0-9a-f-]{36}$/);
 });
 
-test("notes are grouped pinned first, then by age, newest first", () => {
+test("notes are listed pinned first, then in their own order, highest position first", () => {
   const notes = [
-    note({ id: "old", updatedAt: NOW - 20 * DAY_MS }),
-    note({ id: "pin", pinned: true, updatedAt: NOW - 40 * DAY_MS }),
-    note({ id: "today", updatedAt: NOW - 3_600_000 }),
-    note({ id: "week", updatedAt: NOW - 3 * DAY_MS }),
-    note({ id: "today2", updatedAt: NOW }),
+    note({ id: "low", position: 1 }),
+    note({ id: "pin", pinned: true, position: 0 }),
+    note({ id: "high", position: 9 }),
+    note({ id: "legacy", updatedAt: 5 }),
   ];
-  const summary = groupNotes(notes, NOW).map((group) => [group.label, group.notes.map((n) => n.id)]);
-  assert.deepEqual(summary, [
-    ["Pinned", ["pin"]],
-    ["Today", ["today2", "today"]],
-    ["Previous 7 Days", ["week"]],
-    ["Previous 30 Days", ["old"]],
-  ]);
+  const summary = orderedGroups(notes).map((group) => [group.label, group.notes.map((n) => n.id)]);
+  assert.deepEqual(summary, [["Pinned", ["pin"]], ["Notes", ["high", "legacy", "low"]]]);
 });
 
-test("notes older than 30 days are grouped by month", () => {
-  const updatedAt = NOW - 60 * DAY_MS;
-  const [group] = groupNotes([note({ updatedAt })], NOW);
-  assert.equal(group.label, new Date(updatedAt).toLocaleDateString(undefined, { month: "long", year: "numeric" }));
+test("without pinned notes the list has no section headings", () => {
+  assert.deepEqual(orderedGroups([note({ id: "a", position: 1 })]).map((group) => group.label), [null]);
+});
+
+test("a dropped note lands between its new neighbours and takes their pinned state", () => {
+  const notes = [note({ id: "a", position: 30 }), note({ id: "b", position: 20 }), note({ id: "c", position: 10 }), note({ id: "p", pinned: true, position: 99 })];
+  assert.deepEqual(placeNote(notes, { id: "a", targetId: "c", placement: "before" }), { position: 15, pinned: false });
+  assert.deepEqual(placeNote(notes, { id: "c", targetId: "a", placement: "before" }), { position: 1030, pinned: false });
+  assert.deepEqual(placeNote(notes, { id: "a", targetId: "c", placement: "after" }), { position: -990, pinned: false });
+  assert.deepEqual(placeNote(notes, { id: "b", targetId: "p", placement: "after" }), { position: -901, pinned: true });
+});
+
+test("moving a note one step swaps it with its neighbour in the same section", () => {
+  const notes = [note({ id: "a", position: 30 }), note({ id: "b", position: 20 }), note({ id: "c", position: 10 })];
+  assert.deepEqual(stepNote(notes, { id: "c", step: -1 }), { position: 25, pinned: false });
+  assert.deepEqual(stepNote(notes, { id: "a", step: 1 }), { position: 15, pinned: false });
+  assert.equal(stepNote(notes, { id: "a", step: -1 }), null);
 });
 
 test("deleted notes expire after 30 days", () => {

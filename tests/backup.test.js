@@ -68,3 +68,9 @@ test("a version 1 backup still imports, without settings", () => {
   const v1 = JSON.stringify({ app: "notelet", version: 1, exportedAt: NOW.toISOString(), notes });
   assert.deepEqual(parseBackup(v1), { ok: true, version: 1, notes, settings: null });
 });
+
+test("a note's list position survives a round trip and a bad one rejects the file", () => {
+  const placed = { ...notes[0], position: 1234.5 };
+  assert.deepEqual(parseBackup(createBackup([placed], SETTINGS, NOW)).notes, [placed]);
+  assert.equal(parseBackup(backupWith({ notes: [{ ...notes[0], position: "top" }] })).ok, false);
+});

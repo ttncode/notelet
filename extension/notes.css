@@ -72,6 +72,9 @@ button:disabled { cursor: default; }
 .note-row:hover { background: var(--hover); }
 .note-row[aria-current="true"], .note-row[aria-current="true"] + .note-row { box-shadow: none; }
 .note-row[aria-current="true"] { background: var(--selected); }
+.note-row.dragging { opacity: 0.45; }
+.note-row.drop-before { box-shadow: inset 0 3px 0 var(--accent) !important; }
+.note-row.drop-after { box-shadow: inset 0 -3px 0 var(--accent) !important; }
 .note-row-title { display: block; overflow: hidden; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
 .note-row-meta { display: flex; gap: 0.5rem; font-size: 0.85rem; white-space: nowrap; }
 .note-row-date { font-weight: 500; }
