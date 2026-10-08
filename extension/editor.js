@@ -1,5 +1,6 @@
 import { History } from "./history.js";
 import { matchHotkey } from "./hotkeys.js";
+import { liftListOutOfParagraph } from "./lists.js";
 import { EMPTY_NOTE_HTML } from "./model.js";
 import { sanitizeHtml } from "./sanitize.js";
 import {
@@ -188,7 +189,11 @@ export class NoteEditor {
       document.execCommand(kind === "numbered" ? "insertOrderedList" : "insertUnorderedList");
     }
     const list = caretElement(this.#element)?.closest("ul,ol");
-    if (list) applyListKind(list, kind);
+    if (!list) return;
+    applyListKind(list, kind);
+    const { focusNode, focusOffset } = document.getSelection();
+    liftListOutOfParagraph(list);
+    placeCaret(focusNode, focusOffset);
   }
 
   #matchNestedListKind() {
