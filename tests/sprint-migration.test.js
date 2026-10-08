@@ -55,3 +55,13 @@ test("notes without a Target line and notes already migrated are returned unchan
   assert.equal(migrateTargetNote(ordinary, DEFAULT_STATUSES, TODAY), ordinary);
   assert.equal(migrateTargetNote(done, DEFAULT_STATUSES, TODAY), done);
 });
+
+test("a Target of 0 is not a usable sprint, so the note is left as it is", () => {
+  const zero = note("<h1>Plan</h1><p>Target: 0</p>");
+  assert.equal(migrateTargetNote(zero, DEFAULT_STATUSES, TODAY), zero);
+});
+
+test("a Dec–Jan range edited in January belongs to the sprint that just ended", () => {
+  const editedInJanuary = note("<h1>Plan 22/12 - 02/01</h1><p>Target: 9</p>", { updatedAt: new Date(2027, 0, 2).getTime() });
+  assert.deepEqual(migrateTargetNote(editedInJanuary, DEFAULT_STATUSES, TODAY).sprint, { start: "2026-12-22", end: "2027-01-02", target: 9 });
+});

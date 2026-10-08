@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULT_STATUSES, addDays, isIsoDate, isValidSprint, isValidStatus, newSprint, nextStatusId, parsePoints, sprintStats,
-  statusFor, ticketSearchText, validateSprintSettings,
+  sameSettings, statusFor, ticketSearchText, validateSprintSettings,
 } from "../extension/sprint.js";
 
 const SPRINT = { start: "2026-09-28", end: "2026-10-09", target: 18 };
@@ -101,4 +101,11 @@ test("stored sprints and statuses are checked field by field", () => {
   assert.equal(isValidStatus({ id: "Bad Id", label: "x", color: "#ff0000" }), false);
   assert.equal(isValidStatus({ id: "s1", label: "x", color: "red" }), false);
   assert.equal(isValidStatus({ id: "s1", label: "a".repeat(21), color: "#ff0000" }), false);
+});
+
+test("settings with the same statuses are the same whatever the key order", () => {
+  const reordered = { statuses: DEFAULT_STATUSES.map(({ id, label, color }) => ({ color, id, label })) };
+  assert.equal(sameSettings({ statuses: DEFAULT_STATUSES }, reordered), true);
+  assert.equal(sameSettings({ statuses: DEFAULT_STATUSES }, { statuses: DEFAULT_STATUSES.slice(1) }), false);
+  assert.equal(sameSettings({ statuses: DEFAULT_STATUSES }, { statuses: [{ ...DEFAULT_STATUSES[0], color: "#000000" }, ...DEFAULT_STATUSES.slice(1)] }), false);
 });
