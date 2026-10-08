@@ -17,6 +17,8 @@ const BLOCK_TAGS = new Set([...PARAGRAPH_LIKE, "h1", "h2", "h3", "h4", "h5", "h6
 const CELL_TAGS = new Set(["td", "th"]);
 const LIST_CLASSES = new Set(["checklist", "dashed"]);
 const CHECKED_VALUES = new Set(["true", "false"]);
+const POINTS_VALUE = /^\d+(\.\d+)?$/;
+const STATUS_ID = /^[a-z0-9-]{1,24}$/;
 const SAFE_URL = /^(https?:|mailto:)/i;
 const ROOT_BLOCKS = new Set(["h1", "h2", "h3", "p", "pre", "ul", "ol"]);
 
@@ -87,7 +89,14 @@ function copyAllowedAttributes(source, clean, tag) {
     const kind = (source.getAttribute("class") ?? "").split(/\s+/).find((name) => LIST_CLASSES.has(name));
     if (kind) clean.setAttribute("class", kind);
   }
-  if (tag === "li" && CHECKED_VALUES.has(source.getAttribute("data-checked"))) {
-    clean.setAttribute("data-checked", source.getAttribute("data-checked"));
-  }
+  if (tag === "li") copyTicketAttributes(source, clean);
+}
+
+function copyTicketAttributes(source, clean) {
+  const checked = source.getAttribute("data-checked");
+  const points = source.getAttribute("data-points");
+  const status = source.getAttribute("data-status");
+  if (CHECKED_VALUES.has(checked)) clean.setAttribute("data-checked", checked);
+  if (points !== null && POINTS_VALUE.test(points)) clean.setAttribute("data-points", points);
+  if (status !== null && STATUS_ID.test(status)) clean.setAttribute("data-status", status);
 }
