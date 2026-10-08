@@ -2,7 +2,7 @@ import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseHtml } from "../extension/model.js";
-import { liftListOutOfParagraph, setBlockType } from "../extension/lists.js";
+import { itemCreatedBySplit, liftListOutOfParagraph, setBlockType } from "../extension/lists.js";
 
 function paragraphWith(...children) {
   const doc = parseHtml("");
@@ -82,4 +82,25 @@ test("an empty item becomes an empty block the caret can sit in", () => {
   const body = parseHtml("<ul><li></li></ul>").body;
   setBlockType(body.querySelector("li"), "h1");
   assert.equal(body.innerHTML, "<h1><br></h1>");
+});
+
+function twoItems() {
+  const list = parseHtml('<ul class="checklist"><li>first</li><li>second</li></ul>').body.querySelector("ul");
+  return [...list.children];
+}
+
+test("Enter at the end of an item: the new item is the one the caret moved into", () => {
+  const [first, second] = twoItems();
+  assert.equal(itemCreatedBySplit(first, second), second);
+});
+
+test("Enter at the start of an item: the caret stays put, so the new item is the one before it", () => {
+  const [first, second] = twoItems();
+  assert.equal(itemCreatedBySplit(second, second), first);
+});
+
+test("no list item around the caret means nothing to reset", () => {
+  const [first] = twoItems();
+  assert.equal(itemCreatedBySplit(null, null), null);
+  assert.equal(itemCreatedBySplit(first, null), null);
 });

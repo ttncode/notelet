@@ -1,6 +1,6 @@
 import { History } from "./history.js";
 import { matchHotkey } from "./hotkeys.js";
-import { liftListOutOfParagraph, setBlockType } from "./lists.js";
+import { itemCreatedBySplit, liftListOutOfParagraph, setBlockType } from "./lists.js";
 import { EMPTY_NOTE_HTML } from "./model.js";
 import { sanitizeHtml } from "./sanitize.js";
 import {
@@ -26,6 +26,7 @@ export class NoteEditor {
   #history = new History();
   #lastInput = { at: 0, kind: "" };
   #savedRange = null;
+  #itemBeforeEnter = null;
 
   constructor({ element, isMac, onChange }) {
     this.#element = element;
@@ -117,6 +118,7 @@ export class NoteEditor {
       else this.#redo();
       return;
     }
+    if (event.inputType === "insertParagraph") this.#itemBeforeEnter = caretElement(this.#element)?.closest(CHECKLIST_ITEM) ?? null;
     if (!event.isComposing) this.#checkpointTyping(event.inputType);
   }
 
@@ -228,8 +230,9 @@ export class NoteEditor {
   }
 
   #uncheckNewItem() {
-    const item = caretElement(this.#element)?.closest(CHECKLIST_ITEM);
-    if (!item) return;
+    const item = itemCreatedBySplit(this.#itemBeforeEnter, caretElement(this.#element)?.closest(CHECKLIST_ITEM) ?? null);
+    this.#itemBeforeEnter = null;
+    if (!item?.matches(CHECKLIST_ITEM)) return;
     item.setAttribute("data-checked", "false");
     item.removeAttribute("data-points");
     item.removeAttribute("data-status");
