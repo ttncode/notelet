@@ -1,3 +1,4 @@
+import { isValidSections } from "./sections.js";
 import { isValidSprint, isValidStatus } from "./sprint.js";
 
 export const BACKUP_APP = "notelet";
@@ -25,7 +26,7 @@ export function parseBackup(text) {
   if (data.version === 2 && !isValidSettings(data.settings)) return failure("The status settings in this backup are damaged, so nothing was imported.");
   const damagedIndex = data.notes.findIndex((note) => !isValidNote(note));
   if (damagedIndex !== -1) return failure(`Note ${damagedIndex + 1} in this backup is damaged, so nothing was imported.`);
-  const settings = data.version === 2 ? { statuses: data.settings.statuses.map(pickStatusFields) } : null;
+  const settings = data.version === 2 ? pickSettings(data.settings) : null;
   return { ok: true, version: data.version, notes: data.notes.map(pickNoteFields), settings };
 }
 
@@ -39,7 +40,13 @@ function parseJson(text) {
 }
 
 function isValidSettings(settings) {
-  return Array.isArray(settings?.statuses) && settings.statuses.length > 0 && settings.statuses.every(isValidStatus);
+  return Array.isArray(settings?.statuses) && settings.statuses.length > 0 && settings.statuses.every(isValidStatus)
+    && (settings.sections === undefined || isValidSections(settings.sections));
+}
+
+function pickSettings({ statuses, sections }) {
+  const picked = { statuses: statuses.map(pickStatusFields) };
+  return sections === undefined ? picked : { ...picked, sections: sections.map(({ id, label, counts }) => ({ id, label, counts })) };
 }
 
 function isValidNote(note) {

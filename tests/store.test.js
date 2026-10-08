@@ -26,7 +26,7 @@ test("a fresh install records the schema version and returns defaults", async ()
 });
 
 test("notes are stored one key per note and loaded back", async () => {
-  const area = fakeArea({ schemaVersion: 2 });
+  const area = fakeArea({ schemaVersion: 3 });
   const store = createStore(area);
   await store.saveNotes([note]);
   assert.deepEqual(area.data["note:a"], note);
@@ -34,18 +34,18 @@ test("notes are stored one key per note and loaded back", async () => {
 });
 
 test("removing notes deletes their keys", async () => {
-  const area = fakeArea({ schemaVersion: 2, "note:a": note });
+  const area = fakeArea({ schemaVersion: 3, "note:a": note });
   await createStore(area).removeNotes(["a"]);
   assert.equal("note:a" in area.data, false);
 });
 
 test("saved UI state is merged over the defaults", async () => {
-  const area = fakeArea({ schemaVersion: 2, ui: { sidebarWidth: 320 } });
+  const area = fakeArea({ schemaVersion: 3, ui: { sidebarWidth: 320 } });
   assert.deepEqual((await createStore(area).load()).ui, { ...DEFAULT_UI, sidebarWidth: 320 });
 });
 
 test("data from a newer schema is refused instead of misread", async () => {
-  await assert.rejects(createStore(fakeArea({ schemaVersion: 3 })).load(), /newer version/);
+  await assert.rejects(createStore(fakeArea({ schemaVersion: 4 })).load(), /newer version/);
 });
 
 test("changes from other tabs report updated and removed notes only", () => {
@@ -62,14 +62,14 @@ test("loading schema 1 migrates Target notes and stores default settings", async
   const area = fakeArea({ schemaVersion: 1, "note:t": targetNote, "note:a": note });
   const loaded = await createStore(area).load(new Date(2026, 9, 8));
   assert.deepEqual(loaded.notes.find((n) => n.id === "t").sprint, { start: "2026-10-08", end: "2026-10-21", target: 9 });
-  assert.equal(area.data.schemaVersion, 2);
+  assert.equal(area.data.schemaVersion, 3);
   assert.deepEqual(area.data.settings, defaultSettings());
   assert.deepEqual(area.data["note:a"], note);
   assert.ok(area.data["note:t"].sprint);
 });
 
 test("status settings are saved and reported to other tabs", async () => {
-  const area = fakeArea({ schemaVersion: 2 });
+  const area = fakeArea({ schemaVersion: 3 });
   const store = createStore(area);
   const received = [];
   store.onChange((change) => received.push(change));
@@ -91,4 +91,14 @@ test("a theme change in another tab is reported, other layout changes are not", 
 
 test("the theme defaults to System", () => {
   assert.equal(DEFAULT_UI.theme, "system");
+});
+
+test("loading schema 2 gives sprint notes their sections and fills in section settings", async () => {
+  const sprintNote = { id: "s", html: '<h1>Sprint</h1><ul class="checklist"><li data-checked="false">t</li></ul>', pinned: false, updatedAt: 1, deletedAt: null, sprint: { start: "2026-09-28", end: "2026-10-09", target: 18 } };
+  const area = fakeArea({ schemaVersion: 2, settings: { statuses: defaultSettings().statuses }, "note:s": sprintNote, "note:a": note });
+  const loaded = await createStore(area).load(new Date(2026, 9, 8));
+  assert.match(loaded.notes.find((n) => n.id === "s").html, /data-section="current"/);
+  assert.deepEqual(loaded.settings, defaultSettings());
+  assert.deepEqual(area.data["note:a"], note);
+  assert.equal(area.data.schemaVersion, 3);
 });

@@ -19,6 +19,7 @@ const LIST_CLASSES = new Set(["checklist", "dashed"]);
 const CHECKED_VALUES = new Set(["true", "false"]);
 const POINTS_VALUE = /^\d+(\.\d+)?$/;
 const STATUS_ID = /^[a-z0-9-]{1,24}$/;
+const SECTION_IDS = new Set(["last", "current"]);
 const SAFE_URL = /^(https?:|mailto:)/i;
 const ROOT_BLOCKS = new Set(["h1", "h2", "h3", "p", "pre", "ul", "ol"]);
 
@@ -90,6 +91,7 @@ function copyAllowedAttributes(source, clean, tag) {
     if (kind) clean.setAttribute("class", kind);
   }
   if (tag === "li") copyTicketAttributes(source, clean);
+  if (tag === "h2" && SECTION_IDS.has(source.getAttribute("data-section"))) clean.setAttribute("data-section", source.getAttribute("data-section"));
 }
 
 function copyTicketAttributes(source, clean) {

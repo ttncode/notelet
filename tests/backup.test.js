@@ -74,3 +74,9 @@ test("a note's list position survives a round trip and a bad one rejects the fil
   assert.deepEqual(parseBackup(createBackup([placed], SETTINGS, NOW)).notes, [placed]);
   assert.equal(parseBackup(backupWith({ notes: [{ ...notes[0], position: "top" }] })).ok, false);
 });
+
+test("section settings travel with the backup; older backups without them still import", () => {
+  const { sections, ...withoutSections } = SETTINGS;
+  assert.deepEqual(parseBackup(backupWith({ settings: withoutSections })).settings, withoutSections);
+  assert.equal(parseBackup(backupWith({ settings: { ...SETTINGS, sections: [sections[0]] } })).ok, false);
+});
