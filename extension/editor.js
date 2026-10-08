@@ -55,6 +55,13 @@ export class NoteEditor {
     placeCaretAtStart(this.#element.firstElementChild ?? this.#element);
   }
 
+  updateTicket(item, change) {
+    if (!this.#element.isContentEditable || !this.#element.contains(item)) return;
+    this.#checkpoint();
+    change(item);
+    this.#changed();
+  }
+
   run(action) {
     if (!this.#element.isContentEditable) return;
     if (action === "undo") return this.#undo();
@@ -219,7 +226,10 @@ export class NoteEditor {
 
   #uncheckNewItem() {
     const item = caretElement(this.#element)?.closest(CHECKLIST_ITEM);
-    if (item) item.setAttribute("data-checked", "false");
+    if (!item) return;
+    item.setAttribute("data-checked", "false");
+    item.removeAttribute("data-points");
+    item.removeAttribute("data-status");
   }
 
   #linkifyBeforeCaret() {
