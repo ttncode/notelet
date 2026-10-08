@@ -50,9 +50,12 @@ export class NoteEditor {
     return this.#element.contains(document.activeElement);
   }
 
+  // A new note's empty title line, or a new sprint's empty first ticket, is where typing starts.
   focusStart() {
     this.#element.focus();
-    placeCaretAtStart(this.#element.firstElementChild ?? this.#element);
+    const blocks = [...this.#element.querySelectorAll("h1,h2,h3,p,pre,li")];
+    const firstEmpty = blocks.find((block) => block.textContent === "");
+    placeCaretAtStart(firstEmpty ?? this.#element.firstElementChild ?? this.#element);
   }
 
   updateTicket(item, change) {
