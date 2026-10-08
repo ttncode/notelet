@@ -131,12 +131,15 @@
     </form>
   </dialog>
 
-  <dialog class="help" id="help" aria-labelledby="help-title">
-    <h2 id="help-title">Keyboard shortcuts</h2>
-    <table><tbody></tbody></table>
-    <p class="help-note">To open Notelet from anywhere, set a shortcut at <code>chrome://extensions/shortcuts</code>.</p>
-    <p class="help-version"></p>
-    <form method="dialog"><button class="text-button" type="submit">Done</button></form>
+  <dialog class="sheet help" id="help" aria-labelledby="help-title">
+    <form class="sheet-bar" method="dialog">
+      <span></span>
+      <h2 id="help-title" tabindex="-1" autofocus>Keyboard Shortcuts</h2>
+      <button class="text-button sheet-confirm" type="submit">Done</button>
+    </form>
+    <div class="form-card"><table><tbody></tbody></table></div>
+    <p class="form-foot">To open Notelet from anywhere, set a shortcut at <code>chrome://extensions/shortcuts</code>.</p>
+    <p class="form-foot help-version"></p>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
