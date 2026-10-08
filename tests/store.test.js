@@ -79,3 +79,16 @@ test("status settings are saved and reported to other tabs", async () => {
   area.emit({ settings: { newValue: settings } });
   assert.deepEqual(received, [{ updated: [], removedIds: [], settings }]);
 });
+
+test("a theme change in another tab is reported, other layout changes are not", () => {
+  const area = fakeArea();
+  const received = [];
+  createStore(area).onChange((change) => received.push(change));
+  area.emit({ ui: { oldValue: { ...DEFAULT_UI }, newValue: { ...DEFAULT_UI, sidebarWidth: 300 } } });
+  area.emit({ ui: { oldValue: { ...DEFAULT_UI }, newValue: { ...DEFAULT_UI, theme: "dark" } } });
+  assert.deepEqual(received, [{ updated: [], removedIds: [], theme: "dark" }]);
+});
+
+test("the theme defaults to System", () => {
+  assert.equal(DEFAULT_UI.theme, "system");
+});

@@ -6,7 +6,7 @@ const UI_KEY = "ui";
 const SETTINGS_KEY = "settings";
 
 export const SCHEMA_VERSION = 2;
-export const DEFAULT_UI = Object.freeze({ sidebarWidth: 280, sidebarHidden: false, lastNoteId: null, scrollTop: 0 });
+export const DEFAULT_UI = Object.freeze({ sidebarWidth: 280, sidebarHidden: false, lastNoteId: null, scrollTop: 0, theme: "system" });
 
 export function createStore(area) {
   return {
@@ -38,10 +38,17 @@ function saveMigration(area, settings, changedNotes) {
 function notifyChanges(changes, listener) {
   const noteChanges = Object.entries(changes).filter(([key]) => key.startsWith(NOTE_PREFIX));
   const settings = changes[SETTINGS_KEY]?.newValue;
-  if (noteChanges.length === 0 && settings === undefined) return;
+  const theme = changedTheme(changes[UI_KEY]);
+  if (noteChanges.length === 0 && settings === undefined && theme === undefined) return;
   const updated = noteChanges.filter(([, change]) => change.newValue !== undefined).map(([, change]) => change.newValue);
   const removedIds = noteChanges.filter(([, change]) => change.newValue === undefined).map(([key]) => key.slice(NOTE_PREFIX.length));
-  listener(settings === undefined ? { updated, removedIds } : { updated, removedIds, settings });
+  listener({ updated, removedIds, ...(settings === undefined ? {} : { settings }), ...(theme === undefined ? {} : { theme }) });
+}
+
+// Only the theme is shared between tabs; sidebar width and scroll position stay per tab.
+function changedTheme(uiChange) {
+  const theme = uiChange?.newValue?.theme;
+  return theme !== undefined && theme !== (uiChange.oldValue?.theme ?? DEFAULT_UI.theme) ? theme : undefined;
 }
 
 const noteKey = (id) => `${NOTE_PREFIX}${id}`;
