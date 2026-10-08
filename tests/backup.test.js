@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { backupFileName, createBackup, parseBackup } from "../extension/backup.js";
+import { DEFAULT_SECTIONS } from "../extension/sections.js";
 import { defaultSettings } from "../extension/sprint.js";
 
 const SETTINGS = defaultSettings();
@@ -13,7 +14,7 @@ const notes = [
 const backupWith = (overrides) => JSON.stringify({ app: "notelet", version: 2, exportedAt: NOW.toISOString(), settings: SETTINGS, notes, ...overrides });
 
 test("an export imports back to the same notes", () => {
-  assert.deepEqual(parseBackup(createBackup(notes, SETTINGS, NOW)), { ok: true, version: 2, notes, settings: SETTINGS });
+  assert.deepEqual(parseBackup(createBackup(notes, SETTINGS, NOW)), { ok: true, version: 3, notes, settings: SETTINGS });
 });
 
 test("unknown note fields are dropped on import", () => {
@@ -31,7 +32,7 @@ test("JSON from another app is rejected", () => {
 });
 
 test("a backup from a newer version asks for an update", () => {
-  assert.match(parseBackup(backupWith({ version: 3 })).error, /newer version/);
+  assert.match(parseBackup(backupWith({ version: 4 })).error, /newer version/);
 });
 
 test("a backup without a notes list is rejected", () => {
@@ -75,8 +76,23 @@ test("a note's list position survives a round trip and a bad one rejects the fil
   assert.equal(parseBackup(backupWith({ notes: [{ ...notes[0], position: "top" }] })).ok, false);
 });
 
-test("section settings travel with the backup; older backups without them still import", () => {
-  const { sections, ...withoutSections } = SETTINGS;
-  assert.deepEqual(parseBackup(backupWith({ settings: withoutSections })).settings, withoutSections);
-  assert.equal(parseBackup(backupWith({ settings: { ...SETTINGS, sections: [sections[0]] } })).ok, false);
+test("a version 2 backup keeps its section settings so its sprint notes can become groups", () => {
+  const withSections = { ...SETTINGS, sections: DEFAULT_SECTIONS };
+  assert.deepEqual(parseBackup(backupWith({ settings: withSections })).settings, withSections);
+  assert.equal(parseBackup(backupWith({ settings: { ...SETTINGS, sections: [DEFAULT_SECTIONS[0]] } })).ok, false);
+});
+
+const trackerNote = {
+  ...notes[0],
+  sprint: {
+    start: "2026-09-28", end: "2026-10-09", target: 18, title: "Task Tracking",
+    groups: [{ id: "g1", name: "Current Sprint", counts: true, collapsed: false, tasks: [{ id: "t1", title: "#1 Fix", points: 3, status: "s2", done: true }] }],
+  },
+};
+
+test("tracker groups and tasks survive a round trip; a broken task rejects the file", () => {
+  assert.deepEqual(parseBackup(createBackup([trackerNote], SETTINGS, NOW)).notes, [trackerNote]);
+  const brokenTask = { ...trackerNote.sprint.groups[0].tasks[0], points: -1 };
+  const broken = { ...trackerNote, sprint: { ...trackerNote.sprint, groups: [{ ...trackerNote.sprint.groups[0], tasks: [brokenTask] }] } };
+  assert.equal(parseBackup(backupWith({ version: 3, notes: [broken] })).ok, false);
 });

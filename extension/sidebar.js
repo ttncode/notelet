@@ -1,6 +1,6 @@
 import { createElement } from "./dom.js";
 import { formatRowDate } from "./format.js";
-import { notePreview, noteTitle } from "./model.js";
+import { notePreview, noteTitleOf } from "./model.js";
 import { formatSprintRange } from "./sprint.js";
 
 export function renderNoteList(container, { groups, currentId, emptyText, now, draggable }) {
@@ -28,6 +28,6 @@ function renderRow(note, { isCurrent, now, draggable }) {
   if (isCurrent) row.setAttribute("aria-current", "true");
   const meta = createElement("span", "note-row-meta");
   meta.append(createElement("span", "note-row-date", formatRowDate(note.updatedAt, now)), createElement("span", "note-row-preview", note.sprint ? formatSprintRange(note.sprint) : notePreview(note.html)));
-  row.append(createElement("span", "note-row-title", noteTitle(note.html)), meta);
+  row.append(createElement("span", "note-row-title", noteTitleOf(note)), meta);
   return row;
 }

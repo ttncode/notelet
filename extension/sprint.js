@@ -1,7 +1,8 @@
 import { formatDayMonth } from "./format.js";
-import { newNote, noteLines, noteTitle, ownText, parseHtml } from "./model.js";
+import { EMPTY_BODY_HTML, newNote, noteLines, noteTitle, ownText, parseHtml } from "./model.js";
 import { convertTicket } from "./ticket-text.js";
-import { countedTicketItems, defaultSections, ensureSprintSections, isValidSections } from "./sections.js";
+import { defaultSections, extractTracker, isValidSections } from "./sections.js";
+import { countedTasks, DEFAULT_GROUPS, DEFAULT_TRACKER_TITLE, isValidGroups, newGroup, roundPoints } from "./tracker.js";
 
 const DAY_MS = 86_400_000;
 const TICKET_SELECTOR = "ul.checklist > li";
@@ -26,18 +27,15 @@ export const DEFAULT_STATUSES = Object.freeze([
   Object.freeze({ id: "s5", label: "Done", color: "#30d158" }),
 ]);
 
-export const defaultSettings = () => ({ statuses: DEFAULT_STATUSES.map((status) => ({ ...status })), sections: defaultSections() });
+export const defaultSettings = () => ({ statuses: DEFAULT_STATUSES.map((status) => ({ ...status })) });
 
-export function normalizeSettings(settings) {
-  return { statuses: settings.statuses, sections: isValidSections(settings.sections) ? settings.sections : defaultSections() };
-}
+export const normalizeSettings = (settings) => ({ statuses: settings.statuses });
+
+// Section labels and count flags were settings before each tracker had its own groups; they
+// are only needed to turn an older sprint note into groups.
+export const legacySections = (settings) => (isValidSections(settings?.sections) ? settings.sections : defaultSections());
 
 export const statusFor = (statuses, id) => statuses.find((status) => status.id === id) ?? statuses[0];
-
-export function nextStatusId(statuses, id) {
-  const current = Math.max(0, statuses.findIndex((status) => status.id === id));
-  return statuses[(current + 1) % statuses.length].id;
-}
 
 export const newStatusId = () => `s-${crypto.randomUUID().slice(0, 8)}`;
 
@@ -84,10 +82,10 @@ function sprintDatesFrom(day) {
   return { start, end: addWorkingDays(start, SPRINT_WORKING_DAYS - 1) };
 }
 
-export function sprintStats(html, { sprint, today, sections }) {
-  const tickets = countedTicketItems(parseHtml(html).body, sections).map(readTicket);
-  const pointed = tickets.filter((ticket) => ticket.points !== null);
-  const completed = roundPoints(pointed.filter((ticket) => ticket.checked).reduce((sum, ticket) => sum + ticket.points, 0));
+export function sprintStats(sprint, today) {
+  const tasks = countedTasks(sprint);
+  const pointed = tasks.filter((task) => task.points !== null);
+  const completed = roundPoints(pointed.filter((task) => task.done).reduce((sum, task) => sum + task.points, 0));
   const days = Math.max(1, workingDaysBetween(sprint.start, sprint.end));
   const todayIso = isoDate(today);
   const day = todayIso < sprint.start ? 0 : Math.min(days, workingDaysBetween(sprint.start, todayIso < sprint.end ? todayIso : sprint.end));
@@ -96,57 +94,34 @@ export function sprintStats(html, { sprint, today, sections }) {
     completed,
     missing: Math.max(0, roundPoints(sprint.target - completed)),
     over: Math.max(0, roundPoints(completed - sprint.target)),
-    unpointed: tickets.length - pointed.length,
+    unpointed: tasks.length - pointed.length,
     days,
     day,
     left: days - day,
   };
 }
 
-export function ticketSearchText(html, statuses) {
-  return ticketItems(html).map((ticket) => statusFor(statuses, ticket.status).label).join(" ");
-}
-
-function ticketItems(html) {
-  return [...parseHtml(html).body.querySelectorAll(TICKET_SELECTOR)].map(readTicket);
-}
-
-const readTicket = (item) => ({
-  checked: item.getAttribute("data-checked") === "true",
-  points: readPoints(item.getAttribute("data-points")),
-  status: item.getAttribute("data-status"),
-});
-
-function readPoints(value) {
-  if (value === null || value === "") return null;
-  const points = Number(value);
-  return Number.isFinite(points) && points >= 0 ? points : null;
-}
-
-const roundPoints = (value) => Math.round(value * 100) / 100;
-
 export const formatShortDate = (iso) => formatDayMonth(utcDay(iso));
 
 export const formatSprintRange = (sprint) => `${formatShortDate(sprint.start)} – ${formatShortDate(sprint.end)}`;
 
-export function newSprint(now, notes, { statuses, sections }) {
+// A new tracker follows the latest one: it starts the next working day, keeps the target and
+// gets empty groups with the same names and count settings.
+export function newSprint(now, notes) {
   const latest = notes
     .filter((note) => note.sprint && note.deletedAt === null)
     .sort((a, b) => b.sprint.end.localeCompare(a.sprint.end))[0];
   const dates = sprintDatesFrom(latest ? addDays(latest.sprint.end, 1) : isoDate(new Date(now)));
-  const sprint = { ...dates, target: latest?.sprint.target ?? DEFAULT_TARGET };
-  const [last, current] = sections.map((section) => `<h2 data-section="${section.id}">${escapeHtml(section.label)}</h2>`);
-  const firstTicket = `<li data-checked="false" data-status="${statuses[0].id}"><br></li>`;
-  const html = `<h1>Sprint</h1>${last}<ul class="checklist"></ul>${current}<ul class="checklist">${firstTicket}</ul>`;
-  return { ...newNote(now), html, sprint };
+  const groups = (latest?.sprint.groups ?? DEFAULT_GROUPS).map(({ name, counts }) => newGroup({ name, counts }));
+  const sprint = { ...dates, target: latest?.sprint.target ?? DEFAULT_TARGET, title: DEFAULT_TRACKER_TITLE, groups };
+  return { ...newNote(now), html: EMPTY_BODY_HTML, sprint };
 }
 
-export function validateSprintSettings({ start, end, target, statuses, sections = [] }) {
+export function validateSprintSettings({ start, end, target, statuses }) {
   if (!isIsoDate(start) || !isIsoDate(end) || end < start) return "The end date must be on or after the start date.";
   if (!(Number.isFinite(target) && target > 0)) return "Target points must be more than 0.";
   if (statuses.length === 0) return "Keep at least one status.";
   if (statuses.some((status) => status.label.trim() === "")) return "Every status needs a label.";
-  if (sections.some((section) => section.label.trim() === "")) return "Every section needs a name.";
   return null;
 }
 
@@ -160,7 +135,9 @@ export function isValidStatus(status) {
 export function isValidSprint(sprint) {
   return typeof sprint === "object" && sprint !== null
     && isIsoDate(sprint.start) && isIsoDate(sprint.end) && sprint.end >= sprint.start
-    && Number.isFinite(sprint.target) && sprint.target > 0;
+    && Number.isFinite(sprint.target) && sprint.target > 0
+    && (sprint.title === undefined || typeof sprint.title === "string")
+    && (sprint.groups === undefined || isValidGroups(sprint.groups));
 }
 
 export function migrateTargetNote(note, statuses, today) {
@@ -209,17 +186,13 @@ const defaultDates = (today) => sprintDatesFrom(isoDate(today));
 
 export function sameSettings(first, second) {
   const sameStatus = (a, b) => a.id === b.id && a.label === b.label && a.color === b.color;
-  const sameSection = (a, b) => a.id === b.id && a.label === b.label && a.counts === b.counts;
-  return sameList(first.statuses, second.statuses, sameStatus) && sameList(first.sections ?? [], second.sections ?? [], sameSection);
+  return first.statuses.length === second.statuses.length && first.statuses.every((status, index) => sameStatus(status, second.statuses[index]));
 }
 
-const sameList = (a, b, same) => a.length === b.length && a.every((item, index) => same(item, b[index]));
-
-export function upgradeNote(note, settings, today) {
-  const migrated = migrateTargetNote(note, settings.statuses, today);
-  if (!migrated.sprint) return migrated;
-  const html = ensureSprintSections(migrated.html, settings);
-  return html === note.html && migrated === note ? note : { ...migrated, html };
+// settings: { statuses, sections } where sections are the legacy section labels and count flags.
+export function upgradeNote(note, { statuses, sections }, today) {
+  const migrated = migrateTargetNote(note, statuses, today);
+  if (!migrated.sprint || migrated.sprint.groups) return migrated;
+  const { title, groups, html } = extractTracker(migrated.html, { sections, statuses });
+  return { ...migrated, html, sprint: { ...migrated.sprint, title, groups } };
 }
-
-const escapeHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

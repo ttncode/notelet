@@ -26,7 +26,7 @@ test("a fresh install records the schema version and returns defaults", async ()
 });
 
 test("notes are stored one key per note and loaded back", async () => {
-  const area = fakeArea({ schemaVersion: 3 });
+  const area = fakeArea({ schemaVersion: SCHEMA_VERSION });
   const store = createStore(area);
   await store.saveNotes([note]);
   assert.deepEqual(area.data["note:a"], note);
@@ -34,18 +34,18 @@ test("notes are stored one key per note and loaded back", async () => {
 });
 
 test("removing notes deletes their keys", async () => {
-  const area = fakeArea({ schemaVersion: 3, "note:a": note });
+  const area = fakeArea({ schemaVersion: SCHEMA_VERSION, "note:a": note });
   await createStore(area).removeNotes(["a"]);
   assert.equal("note:a" in area.data, false);
 });
 
 test("saved UI state is merged over the defaults", async () => {
-  const area = fakeArea({ schemaVersion: 3, ui: { sidebarWidth: 320 } });
+  const area = fakeArea({ schemaVersion: SCHEMA_VERSION, ui: { sidebarWidth: 320 } });
   assert.deepEqual((await createStore(area).load()).ui, { ...DEFAULT_UI, sidebarWidth: 320 });
 });
 
 test("data from a newer schema is refused instead of misread", async () => {
-  await assert.rejects(createStore(fakeArea({ schemaVersion: 4 })).load(), /newer version/);
+  await assert.rejects(createStore(fakeArea({ schemaVersion: SCHEMA_VERSION + 1 })).load(), /newer version/);
 });
 
 test("changes from other tabs report updated and removed notes only", () => {
@@ -61,15 +61,16 @@ test("loading schema 1 migrates Target notes and stores default settings", async
   const targetNote = { id: "t", html: "<h1>Plan</h1><p>Target: 9</p>", pinned: false, updatedAt: 1, deletedAt: null };
   const area = fakeArea({ schemaVersion: 1, "note:t": targetNote, "note:a": note });
   const loaded = await createStore(area).load(new Date(2026, 9, 8));
-  assert.deepEqual(loaded.notes.find((n) => n.id === "t").sprint, { start: "2026-10-08", end: "2026-10-21", target: 9 });
-  assert.equal(area.data.schemaVersion, 3);
+  const { start, end, target } = loaded.notes.find((n) => n.id === "t").sprint;
+  assert.deepEqual({ start, end, target }, { start: "2026-10-08", end: "2026-10-21", target: 9 });
+  assert.equal(area.data.schemaVersion, SCHEMA_VERSION);
   assert.deepEqual(area.data.settings, defaultSettings());
   assert.deepEqual(area.data["note:a"], note);
   assert.ok(area.data["note:t"].sprint);
 });
 
 test("status settings are saved and reported to other tabs", async () => {
-  const area = fakeArea({ schemaVersion: 3 });
+  const area = fakeArea({ schemaVersion: SCHEMA_VERSION });
   const store = createStore(area);
   const received = [];
   store.onChange((change) => received.push(change));
@@ -93,12 +94,21 @@ test("the theme defaults to System", () => {
   assert.equal(DEFAULT_UI.theme, "system");
 });
 
-test("loading schema 2 gives sprint notes their sections and fills in section settings", async () => {
-  const sprintNote = { id: "s", html: '<h1>Sprint</h1><ul class="checklist"><li data-checked="false">t</li></ul>', pinned: false, updatedAt: 1, deletedAt: null, sprint: { start: "2026-09-28", end: "2026-10-09", target: 18 } };
-  const area = fakeArea({ schemaVersion: 2, settings: { statuses: defaultSettings().statuses }, "note:s": sprintNote, "note:a": note });
+test("loading schema 3 turns sprint sections into groups using the saved section names and count flags", async () => {
+  const html = '<h1>Weekly Plan</h1><h2 data-section="last">Previous</h2><ul class="checklist"><li data-checked="true" data-points="3" data-status="s4">old</li></ul>'
+    + '<h2 data-section="current">Now</h2><ul class="checklist"><li data-checked="false">new</li></ul><h2>Worklog</h2>';
+  const sprintNote = { id: "s", html, pinned: false, updatedAt: 1, deletedAt: null, sprint: { start: "2026-09-28", end: "2026-10-09", target: 18 } };
+  const sections = [{ id: "last", label: "Previous", counts: true }, { id: "current", label: "Now", counts: true }];
+  const area = fakeArea({ schemaVersion: 3, settings: { statuses: defaultSettings().statuses, sections }, "note:s": sprintNote, "note:a": note });
   const loaded = await createStore(area).load(new Date(2026, 9, 8));
-  assert.match(loaded.notes.find((n) => n.id === "s").html, /data-section="current"/);
-  assert.deepEqual(loaded.settings, defaultSettings());
+  const { sprint, html: rest } = loaded.notes.find((n) => n.id === "s");
+  assert.equal(sprint.title, "Weekly Plan");
+  assert.deepEqual(sprint.groups.map(({ name, counts, tasks }) => [name, counts, tasks.map(({ title, points, status, done }) => [title, points, status, done])]), [
+    ["Previous", true, [["old", 3, "s4", true]]],
+    ["Now", true, [["new", null, "s1", false]]],
+  ]);
+  assert.equal(rest, "<h2>Worklog</h2>");
+  assert.deepEqual(area.data.settings, defaultSettings());
   assert.deepEqual(area.data["note:a"], note);
-  assert.equal(area.data.schemaVersion, 3);
+  assert.equal(area.data.schemaVersion, SCHEMA_VERSION);
 });

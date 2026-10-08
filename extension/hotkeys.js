@@ -16,7 +16,7 @@ export const HOTKEYS = [
   { action: "search", label: "Search notes", mod: true, code: "KeyF" },
   // Chrome reserves Ctrl+N (new window).
   { action: "newNote", label: "New note", alt: true, code: "KeyN" },
-  { action: "newSprint", label: "New sprint", alt: true, code: "KeyS" },
+  { action: "newSprint", label: "New task tracking", alt: true, code: "KeyS" },
 ];
 
 export function matchHotkey(event, isMac) {

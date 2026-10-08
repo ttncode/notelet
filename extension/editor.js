@@ -4,10 +4,9 @@ import {
   checkboxForShortcut, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType,
 } from "./lists.js";
 import { EMPTY_NOTE_HTML } from "./model.js";
-import { ticketDestination } from "./sections.js";
 import { sanitizeHtml } from "./sanitize.js";
 import {
-  caretBlock, caretElement, caretOffset, isCaretAtEndOf, placeCaret, placeCaretAfter, placeCaretAtEnd, placeCaretAtStart, setCaretOffset,
+  caretBlock, caretElement, caretOffset, isCaretAtEndOf, placeCaret, placeCaretAfter, placeCaretAtStart, setCaretOffset,
 } from "./selection.js";
 
 const TYPING_PAUSE_MS = 1000;
@@ -30,6 +29,7 @@ export class NoteEditor {
   #lastInput = { at: 0, kind: "" };
   #savedRange = null;
   #itemBeforeEnter = null;
+  #emptyHtml = EMPTY_NOTE_HTML;
 
   constructor({ element, isMac, onChange }) {
     this.#element = element;
@@ -39,7 +39,10 @@ export class NoteEditor {
     this.#listen();
   }
 
-  load(html) {
+  // emptyHtml is what the text falls back to when everything is deleted: a title line for a
+  // note, a body line under a tracker.
+  load(html, { emptyHtml = EMPTY_NOTE_HTML } = {}) {
+    this.#emptyHtml = emptyHtml;
     this.#element.innerHTML = html;
     this.#history.clear();
     this.#lastInput = { at: 0, kind: "" };
@@ -54,27 +57,12 @@ export class NoteEditor {
     return this.#element.contains(document.activeElement);
   }
 
-  // A new note's empty title line, or a new sprint's empty first ticket, is where typing starts.
+  // A new note's empty title line is where typing starts.
   focusStart() {
     this.#element.focus();
     const blocks = [...this.#element.querySelectorAll("h1,h2,h3,p,pre,li")];
     const firstEmpty = blocks.find((block) => block.textContent === "");
     placeCaretAtStart(firstEmpty ?? this.#element.firstElementChild ?? this.#element);
-  }
-
-  moveTicket(item, { list, before }) {
-    if (!this.#element.isContentEditable || !this.#element.contains(item) || item === before) return;
-    this.#checkpoint();
-    list.insertBefore(item, before);
-    placeCaretAtEnd(item);
-    this.#changed();
-  }
-
-  updateTicket(item, change) {
-    if (!this.#element.isContentEditable || !this.#element.contains(item)) return;
-    this.#checkpoint();
-    change(item);
-    this.#changed();
   }
 
   run(action) {
@@ -119,10 +107,6 @@ export class NoteEditor {
       this.#onTab(event);
     } else if (event.key === " ") {
       this.#onSpace(event);
-    } else if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
-      this.#onMoveTicketKey(event);
-    } else if (event.key === "Backspace" || event.key === "Delete") {
-      this.#guardSectionHeading(event);
     }
   }
 
@@ -208,36 +192,6 @@ export class NoteEditor {
     else this.#toggleList("checklist");
     const current = caretElement(this.#element)?.closest(CHECKLIST_ITEM) ?? item;
     current.setAttribute("data-checked", String(checked));
-  }
-
-  #onMoveTicketKey(event) {
-    const item = caretElement(this.#element)?.closest(CHECKLIST_ITEM);
-    const destination = item ? ticketDestination(item, event.key === "ArrowUp" ? -1 : 1) : null;
-    if (!destination) return;
-    event.preventDefault();
-    this.moveTicket(item, destination);
-  }
-
-  // Section headings are locked, so Backspace at the start of a section's first ticket (or
-  // Delete at the end of its last one) must not merge the ticket into the heading.
-  #guardSectionHeading(event) {
-    const item = caretElement(this.#element)?.closest(CHECKLIST_ITEM);
-    const list = item?.parentElement;
-    if (!item || !document.getSelection().isCollapsed || !list.previousElementSibling?.matches("h2[data-section]")) return;
-    const atStart = event.key === "Backspace" && item === list.firstElementChild && caretOffset(item) === 0;
-    const atEnd = event.key === "Delete" && item === list.lastElementChild && isCaretAtEndOf(item) && list.nextElementSibling?.matches("h2[data-section]");
-    if (!atStart && !atEnd) return;
-    event.preventDefault();
-    if (item.textContent === "") this.#removeEmptyTicket(item);
-  }
-
-  #removeEmptyTicket(item) {
-    const list = item.parentElement;
-    this.#checkpoint();
-    item.remove();
-    const next = list.firstElementChild ?? list.nextElementSibling;
-    if (next) placeCaretAtStart(next);
-    this.#changed();
   }
 
   #onMouseDown(event) {
@@ -341,7 +295,7 @@ export class NoteEditor {
   #ensureContent() {
     const element = this.#element;
     if (element.textContent !== "" || element.querySelector("h1,h2,h3,p,pre,li")) return;
-    element.innerHTML = EMPTY_NOTE_HTML;
+    element.innerHTML = this.#emptyHtml;
     placeCaretAtStart(element.firstElementChild);
   }
 
