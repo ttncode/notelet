@@ -103,6 +103,7 @@ body:not(.viewing-deleted) #recover-button { display: none; }
   content: ""; position: absolute; left: 0; top: calc(0.3rem + (1.45em - 1.25rem) / 2); width: 1.25rem; height: 1.25rem;
   border: 1.5px solid var(--secondary); border-radius: 50%; cursor: pointer;
 }
+.editor ul.checklist > li[data-checked="true"] { text-decoration: line-through; }
 .editor ul.checklist > li[data-checked="true"]::before {
   border-color: var(--accent);
   background: var(--accent) var(--check-mark) center / 75% no-repeat;
