@@ -1,8 +1,24 @@
 # Notelet
 
+[![Latest release](https://img.shields.io/github/v/release/ttncode/notelet)](https://github.com/ttncode/notelet/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/ttncode/notelet)](LICENSE)
+![Chrome Manifest V3](https://img.shields.io/badge/Chrome-Manifest%20V3-yellow)
+
 Lightweight notes for Chrome in the style of the Notes app on iPhone, with a points chart for sprint notes. Notes stay in your browser — no account, no sync, nothing sent anywhere.
 
 Notelet is an independent project and is not affiliated with or endorsed by Apple.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/notelet-dark.png">
+  <img src="assets/screenshots/notelet-light.png" width="900" alt="Notelet with a pinned sprint note open: a bar shows Target 18, Completed 13, Missing 5 above a checklist of tickets, with the notes list grouped by Pinned, Today and earlier on the left">
+</picture>
+
+In a narrow window Notelet switches to the iPhone layout: the list first, then the note with a back button.
+
+<p>
+  <img src="assets/screenshots/notelet-narrow-list.png" width="260" alt="Narrow layout in dark mode showing the notes list grouped by Pinned, Today, Previous 7 Days, Previous 30 Days and month">
+  <img src="assets/screenshots/notelet-narrow-note.png" width="260" alt="Narrow layout in dark mode showing the sprint note with its points bar, ticked tickets and a worklog">
+</p>
 
 ## Install
 
