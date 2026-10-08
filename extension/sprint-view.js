@@ -37,7 +37,7 @@ function summaryText(stats, sprint) {
     : createElement("span", "summary-state", `${stats.missing} missing`);
   main.append(createElement("b", "", `${stats.completed} / ${stats.target} points`), state);
   const dayWord = stats.left === 1 ? "day" : "days";
-  text.append(main, createElement("div", "summary-sub", `${formatShortDate(sprint.start)} → ${formatShortDate(sprint.end)} · Day ${stats.day} of ${stats.days} · ${stats.left} ${dayWord} left`));
+  text.append(main, createElement("div", "summary-sub", `${formatShortDate(sprint.start)} – ${formatShortDate(sprint.end)} · Day ${stats.day} of ${stats.days} · ${stats.left} ${dayWord} left`));
   if (stats.unpointed > 0) {
     text.append(createElement("div", "summary-flag", `${stats.unpointed} ${stats.unpointed === 1 ? "ticket" : "tickets"} without points`));
   }
