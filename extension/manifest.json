@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Notelet",
+  "version": "0.1.0",
+  "description": "Lightweight notes in the style of iPhone Notes, with a sprint points chart.",
+  "minimum_chrome_version": "116",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkmdIzZeblGtLJO85S/t9kC61orieKLhnZMsTXP6MARLAYjJDKnH29JjFRFu/qq/ApvRF1+X/Qwll7t/4X5kFkaHt93+1wIHLcos5nPTsGLjhkVAwvlajKYHxVIc25pwF+M1JzilJdf12+hZQV6/c8XjIcIo+foHchdrqSDxTlq5whXWDCPi863HB3SDahpu7effyUvFcnganVdotqTuL5/mBABhI9pYtKUq17Sb9deAECrmNR59vsMvH/lI5+Lplek6dA77NlaRmBbzDCDwVvoPqfUqTWiDMzmYjCZ7wUiTCjNje481TSw9vvV2DFvM3mxSuO+dEg99FaP2R6TeRvQIDAQAB",
+  "permissions": ["storage", "unlimitedStorage"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": {
+    "default_title": "Open Notelet",
+    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" }
+  },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+N" },
+      "description": "Open Notelet"
+    }
+  }
+}
