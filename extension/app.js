@@ -20,6 +20,7 @@ const VIEWPORT_MARGIN_PX = 8;
 const IS_MAC = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platform);
 const SAVE_FAILED_MESSAGE = "Couldn't save your last change. Your text is still here — keep this tab open and try again, or export a backup.";
 
+const TRASH_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13"/></svg>';
 const byId = (id) => document.getElementById(id);
 const store = createStore(chrome.storage.local);
 const notes = new Map();
@@ -133,7 +134,21 @@ function renderSidebarChrome() {
   const toggle = byId("deleted-toggle");
   byId("list-title").textContent = inDeleted ? "Recently Deleted" : "Notes";
   toggle.hidden = !inDeleted && deletedCount === 0;
-  toggle.textContent = inDeleted ? "‹ Notes" : `Recently Deleted (${deletedCount})`;
+  renderDeletedToggle(toggle, { inDeleted, deletedCount });
+}
+
+function renderDeletedToggle(toggle, { inDeleted, deletedCount }) {
+  const label = inDeleted ? "Back to notes" : `Recently Deleted (${deletedCount})`;
+  toggle.setAttribute("aria-label", label);
+  toggle.title = label;
+  if (inDeleted) {
+    toggle.textContent = "‹ Notes";
+    return;
+  }
+  toggle.innerHTML = TRASH_ICON;
+  const count = document.createElement("span");
+  count.textContent = String(deletedCount);
+  toggle.append(count);
 }
 
 function renderEditorPane() {
