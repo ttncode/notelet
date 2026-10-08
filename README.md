@@ -43,17 +43,16 @@ Your notes stay: Notelet's extension ID is fixed, so Chrome keeps the same stora
 
 Notes live only in this browser profile. **Removing the extension deletes all of them**, and Chrome offers no way to keep them. Export regularly; **Import** merges a backup back in (a note with the same ID is replaced).
 
-## Sprint points chart
+## Sprint notes
 
-Add a line `Target: 18` to a note and list your tickets as a checklist with points in parentheses:
+Click the compose button and choose **New Sprint** (or press `Alt+S`). A sprint note starts the day after your last sprint ends, lasts two weeks and keeps the last target.
 
-```
-Target: 18
-◯ #101 Restrict access (5) (InQC)
-◯ #102 Switch admin logic (8) (InReview)
-```
+- The ring at the top shows completed points against the target, the dates and the sprint day.
+- Each checklist line is a ticket. Click its **points** chip to type a number and its **status** chip to move it to the next status.
+- Tick a ticket when its development is done; only ticked tickets count as completed. Status is for tracking only.
+- The ⚙ button changes this sprint's dates and target, and the status names, colours and order shared by all sprints.
 
-The last number in parentheses is the ticket's points. Tick a ticket when its development is done; the bar shows target, completed and missing (or how far over).
+Notes from earlier versions that used a `Target: 18` line are converted to sprint notes automatically.
 
 ## Keyboard shortcuts
 
