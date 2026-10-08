@@ -11,6 +11,7 @@ import { sanitizeHtml } from "./sanitize.js";
 import { createSaveScheduler } from "./scheduler.js";
 import { renderNoteList } from "./sidebar.js";
 import { createStore } from "./store.js";
+import { applyTheme, nextTheme, themeLabel } from "./theme.js";
 
 const SAVE_DELAY_MS = 500;
 const SAVE_MAX_WAIT_MS = 5000;
@@ -21,6 +22,11 @@ const IS_MAC = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platfo
 const SAVE_FAILED_MESSAGE = "Couldn't save your last change. Your text is still here — keep this tab open and try again, or export a backup.";
 
 const TRASH_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13"/></svg>';
+const THEME_ICONS = {
+  system: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+  light: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  dark: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
+};
 const byId = (id) => document.getElementById(id);
 const store = createStore(chrome.storage.local);
 const notes = new Map();
@@ -40,6 +46,7 @@ async function main() {
   loaded.notes.forEach((note) => notes.set(note.id, note));
   state.ui = loaded.ui;
   state.settings = loaded.settings;
+  showTheme(state.ui.theme);
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
   layout = setupLayout({ resizer: byId("resizer"), ui: state.ui, onUiChange: saveUiSoon });
@@ -127,6 +134,20 @@ function renderList() {
 }
 
 const deletedGroups = (visible) => (visible.length > 0 ? [{ label: "Recently Deleted", notes: visible }] : []);
+
+function cycleTheme() {
+  const theme = nextTheme(state.ui.theme);
+  showTheme(theme);
+  saveUiSoon({ theme });
+}
+
+function showTheme(theme) {
+  applyTheme(theme);
+  const button = byId("theme-button");
+  button.innerHTML = THEME_ICONS[theme] ?? THEME_ICONS.system;
+  button.setAttribute("aria-label", themeLabel(theme));
+  button.title = themeLabel(theme);
+}
 
 function renderSidebarChrome() {
   const inDeleted = state.mode === "deleted";
@@ -347,7 +368,11 @@ function reportImportError(error) {
   showToast("Import failed; your existing notes were not changed.");
 }
 
-function applyRemoteChanges({ updated, removedIds, settings }) {
+function applyRemoteChanges({ updated, removedIds, settings, theme }) {
+  if (theme) {
+    state.ui.theme = theme;
+    showTheme(theme);
+  }
   if (settings) state.settings = settings;
   const newer = remoteNotesToApply(updated, { local: notes, isPending: saves.isPending });
   const removed = removedIds.filter((id) => notes.has(id) && !saves.isPending(id));
@@ -426,6 +451,7 @@ function wireButtons() {
     "sidebar-toggle": () => layout.toggleSidebar(),
     "back-button": () => layout.showList(),
     "deleted-toggle": toggleDeletedView,
+    "theme-button": cycleTheme,
     "export-button": exportNotes,
     "import-button": () => importNotes().catch(reportImportError),
     "help-button": () => openHelp({ dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version }),
