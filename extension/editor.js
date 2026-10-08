@@ -6,7 +6,7 @@ import {
 import { EMPTY_NOTE_HTML } from "./model.js";
 import { sanitizeHtml } from "./sanitize.js";
 import {
-  caretBlock, caretElement, caretOffset, isCaretAtEndOf, placeCaret, placeCaretAfter, placeCaretAtStart, setCaretOffset,
+  caretBlock, caretElement, caretOffset, isCaretAtEndOf, placeCaret, placeCaretAfter, placeCaretAtEnd, placeCaretAtStart, setCaretOffset,
 } from "./selection.js";
 
 const TYPING_PAUSE_MS = 1000;
@@ -57,13 +57,14 @@ export class NoteEditor {
     return this.#element.contains(document.activeElement);
   }
 
-  // Back to where the caret last was in this note, or to its start.
+  // Back to where the caret last was in this note, or to the end of its last line.
   focus() {
+    this.#element.focus();
     if (!this.#savedRange) {
-      this.focusStart();
+      const blocks = this.#element.querySelectorAll("h1,h2,h3,p,pre,li");
+      placeCaretAtEnd(blocks[blocks.length - 1] ?? this.#element);
       return;
     }
-    this.#element.focus();
     document.getSelection().removeAllRanges();
     document.getSelection().addRange(this.#savedRange);
   }

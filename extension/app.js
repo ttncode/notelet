@@ -485,6 +485,13 @@ function wireSidebar() {
 }
 
 function onListKeydown(event) {
+  const row = event.target.closest(".note-row");
+  if (event.key === "Enter" && row) {
+    event.preventDefault();
+    if (row.dataset.noteId !== state.currentId) selectNote(row.dataset.noteId);
+    focusEditor();
+    return;
+  }
   const step = { ArrowDown: 1, ArrowUp: -1 }[event.key];
   if (!step) return;
   if (event.altKey) {
