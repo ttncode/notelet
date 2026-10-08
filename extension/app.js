@@ -1,5 +1,5 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
-import { downloadFile, openHelp, pickTextFile, showToast } from "./dialogs.js";
+import { closeOnOutsideClick, downloadFile, openHelp, pickTextFile, showToast } from "./dialogs.js";
 import { NoteEditor } from "./editor.js";
 import { matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
@@ -375,6 +375,8 @@ function isEditingCurrentNote() {
 }
 
 function wireControls() {
+  closeOnOutsideClick(byId("help"));
+  closeOnOutsideClick(byId("sprint-settings"));
   wireEditorActions();
   wireButtons();
   wireSidebar();
