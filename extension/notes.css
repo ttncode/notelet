@@ -37,6 +37,8 @@
 html, body { height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--text); font: 1rem/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
 button { font: inherit; color: inherit; }
+button, input[type="color"], input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+button:disabled { cursor: default; }
 :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 
 .app { display: grid; grid-template-columns: var(--sidebar-width) 1px minmax(0, 1fr); height: 100vh; }
