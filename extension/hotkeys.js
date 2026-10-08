@@ -16,6 +16,9 @@ export const HOTKEYS = [
   { action: "redo", label: "Redo", mod: true, shift: true, code: "KeyZ" },
   { action: "redo", label: "Redo", mod: true, code: "KeyY" },
   { action: "pastePlain", label: "Paste as plain text", mod: true, shift: true, code: "KeyV", native: true },
+  { action: "focusList", label: "Go to notes list", alt: true, code: "Digit1" },
+  { action: "search", label: "Search notes", alt: true, code: "Digit2" },
+  { action: "focusEditor", label: "Go to note", alt: true, code: "Digit3" },
   { action: "search", label: "Search notes", mod: true, code: "KeyF" },
   // Chrome reserves Ctrl+N (new window).
   { action: "newNote", label: "New note", alt: true, code: "KeyN" },
