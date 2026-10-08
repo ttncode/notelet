@@ -20,8 +20,9 @@ test("nothing fires while an IME composition is active", () => {
   assert.equal(matchHotkey(key("KeyL", { ctrlKey: true, shiftKey: true, isComposing: true }), false), null);
 });
 
-test("Chrome-reserved shortcuts use their Alt fallbacks", () => {
-  assert.equal(matchHotkey(key("KeyT", { altKey: true, shiftKey: true }), false), "title");
+test("Chrome-reserved shortcuts use Alt fallbacks that avoid Windows' Alt+Shift language switch", () => {
+  assert.equal(matchHotkey(key("KeyT", { altKey: true }), false), "title");
+  assert.equal(matchHotkey(key("KeyT", { altKey: true, shiftKey: true }), false), null);
   assert.equal(matchHotkey(key("KeyN", { altKey: true }), false), "newNote");
 });
 

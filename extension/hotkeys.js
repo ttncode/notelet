@@ -1,6 +1,6 @@
 export const HOTKEYS = [
-  // Chrome reserves Ctrl+Shift+T (reopen closed tab) and pages cannot override it.
-  { action: "title", label: "Title", alt: true, shift: true, code: "KeyT" },
+  // Chrome reserves Ctrl+Shift+T (reopen closed tab), and Alt+Shift is Windows' keyboard-language switch.
+  { action: "title", label: "Title", alt: true, code: "KeyT" },
   { action: "heading", label: "Heading", mod: true, shift: true, code: "KeyH" },
   { action: "subheading", label: "Subheading", mod: true, shift: true, code: "KeyJ" },
   { action: "body", label: "Body", mod: true, shift: true, code: "KeyB" },
