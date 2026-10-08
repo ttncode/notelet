@@ -181,13 +181,13 @@ function renderSidebarChrome() {
 function renderEditorPane() {
   const note = notes.get(state.currentId);
   const inDeleted = state.mode === "deleted";
-  const deleteLabel = inDeleted ? "Delete permanently" : "Delete note";
+  const deleteLabel = inDeleted ? "Delete Permanently" : "Delete";
   byId("editor-empty").hidden = Boolean(note);
   byId("editor").hidden = !note;
   byId("note-date").textContent = note ? formatEditedDate(note.updatedAt) : "";
-  byId("pin-button").setAttribute("aria-pressed", String(Boolean(note?.pinned)));
-  byId("delete-button").setAttribute("aria-label", deleteLabel);
-  byId("delete-button").title = deleteLabel;
+  byId("pin-label").textContent = note?.pinned ? "Unpin Note" : "Pin Note";
+  byId("delete-label").textContent = deleteLabel;
+  document.body.classList.toggle("has-note", Boolean(note));
   document.body.classList.toggle("viewing-deleted", inDeleted);
   editor.setReadOnly(inDeleted || !note);
   renderNoteDetails(note);
@@ -488,6 +488,13 @@ function wireButtons() {
   };
   for (const [id, handler] of Object.entries(handlers)) byId(id).addEventListener("click", handler);
   wireListMenu();
+  wireNoteMenu();
+}
+
+function wireNoteMenu() {
+  const menu = byId("note-menu");
+  menu.addEventListener("toggle", (event) => { if (event.newState === "open") positionMenu(menu, byId("note-menu-button")); });
+  menu.addEventListener("click", (event) => { if (event.target.closest(".menu-item")) menu.hidePopover(); });
 }
 
 // Theme stays open so it can be clicked through System, Light and Dark.
