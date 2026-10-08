@@ -4,13 +4,15 @@ import { downloadFile, openHelp, pickTextFile, showToast } from "./dialogs.js";
 import { NoteEditor } from "./editor.js";
 import { matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
-import { groupNotes, isEmptyNote, isExpired, newNote, noteText, noteTitle } from "./model.js";
+import { groupNotes, isEmptyNote, isExpired, newNote, noteText, noteTitle, remoteNotesToApply } from "./model.js";
 import { computePoints } from "./points.js";
 import { sanitizeHtml } from "./sanitize.js";
+import { createSaveScheduler } from "./scheduler.js";
 import { renderNoteList } from "./sidebar.js";
 import { createStore } from "./store.js";
 
 const SAVE_DELAY_MS = 500;
+const SAVE_MAX_WAIT_MS = 5000;
 const UI_SAVE_DELAY_MS = 300;
 const MENU_GAP_PX = 6;
 const VIEWPORT_MARGIN_PX = 8;
@@ -20,7 +22,7 @@ const SAVE_FAILED_MESSAGE = "Couldn't save your last change. Your text is still 
 const byId = (id) => document.getElementById(id);
 const store = createStore(chrome.storage.local);
 const notes = new Map();
-const pendingSaves = new Map();
+const saves = createSaveScheduler({ delayMs: SAVE_DELAY_MS, maxWaitMs: SAVE_MAX_WAIT_MS, save: saveNow });
 const state = { currentId: null, mode: "notes", query: "", ui: null };
 let editor;
 let layout;
@@ -95,8 +97,7 @@ function discardIfEmpty(previousId, nextId) {
 }
 
 function removePermanently(id) {
-  clearTimeout(pendingSaves.get(id));
-  pendingSaves.delete(id);
+  saves.cancel(id);
   notes.delete(id);
   store.removeNotes([id]).catch(reportSaveError);
 }
@@ -155,29 +156,18 @@ function onEditorChange(html) {
   if (!note || note.deletedAt !== null || note.html === html) return;
   const updated = { ...note, html, updatedAt: Date.now() };
   notes.set(updated.id, updated);
-  scheduleSave(updated.id);
+  saves.schedule(updated.id);
   renderList();
   byId("note-date").textContent = formatEditedDate(updated.updatedAt);
   renderNoteDetails(updated);
 }
 
-function scheduleSave(id) {
-  clearTimeout(pendingSaves.get(id));
-  pendingSaves.set(id, setTimeout(() => saveNow(id), SAVE_DELAY_MS));
-}
-
 function saveNow(id) {
-  pendingSaves.delete(id);
   const note = notes.get(id);
   if (note) store.saveNotes([note]).catch(reportSaveError);
 }
 
-function flushSaves() {
-  for (const [id, timer] of pendingSaves) {
-    clearTimeout(timer);
-    saveNow(id);
-  }
-}
+const flushSaves = () => saves.flush();
 
 function reportSaveError(error) {
   console.error("Notelet: save failed", error);
@@ -196,8 +186,7 @@ function updateCurrent(change) {
   const note = notes.get(state.currentId);
   if (!note) return null;
   const updated = { ...note, ...change(note), updatedAt: Date.now() };
-  clearTimeout(pendingSaves.get(updated.id));
-  pendingSaves.delete(updated.id);
+  saves.cancel(updated.id);
   notes.set(updated.id, updated);
   store.saveNotes([updated]).catch(reportSaveError);
   return updated;
@@ -263,8 +252,7 @@ async function importNotes() {
   const imported = result.notes.map((note) => ({ ...note, html: sanitizeHtml(note.html) }));
   await store.saveNotes(imported);
   imported.forEach((note) => {
-    clearTimeout(pendingSaves.get(note.id));
-    pendingSaves.delete(note.id);
+    saves.cancel(note.id);
     notes.set(note.id, note);
   });
   refreshAfterOutsideChange(imported.map((note) => note.id));
@@ -277,8 +265,8 @@ function reportImportError(error) {
 }
 
 function applyRemoteChanges({ updated, removedIds }) {
-  const newer = updated.filter((note) => !notes.has(note.id) || note.updatedAt > notes.get(note.id).updatedAt);
-  const removed = removedIds.filter((id) => notes.has(id));
+  const newer = remoteNotesToApply(updated, { local: notes, isPending: saves.isPending });
+  const removed = removedIds.filter((id) => notes.has(id) && !saves.isPending(id));
   if (newer.length === 0 && removed.length === 0) return;
   newer.forEach((note) => notes.set(note.id, note));
   removed.forEach((id) => notes.delete(id));
