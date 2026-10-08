@@ -4,20 +4,20 @@
 [![License: MIT](https://img.shields.io/github/license/ttncode/notelet)](LICENSE)
 ![Chrome Manifest V3](https://img.shields.io/badge/Chrome-Manifest%20V3-yellow)
 
-Lightweight notes for Chrome in the style of the Notes app on iPhone, with a points chart for sprint notes. Notes stay in your browser — no account, no sync, nothing sent anywhere.
+Lightweight notes for Chrome in the style of the Notes app on iPhone, with task tracking for sprints. Notes stay in your browser — no account, no sync, nothing sent anywhere.
 
 Notelet is an independent project and is not affiliated with or endorsed by Apple.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/notelet-dark.png">
-  <img src="assets/screenshots/notelet-light.png" width="900" alt="Notelet with a pinned sprint note open: a bar shows Target 18, Completed 13, Missing 5 above a checklist of tickets, with the notes list grouped by Pinned, Today and earlier on the left">
+  <img src="assets/screenshots/notelet-light.png" width="900" alt="Notelet with a pinned task tracker open: a donut of points by status shows 13 of 18 points done above the Last Sprint and Current Sprint groups of tasks, each with a tick, points and a status; the notes list on the left shows Pinned and Notes cards">
 </picture>
 
 In a narrow window Notelet switches to the iPhone layout: the list first, then the note with a back button.
 
 <p>
-  <img src="assets/screenshots/notelet-narrow-list.png" width="260" alt="Narrow layout in dark mode showing the notes list grouped by Pinned, Today, Previous 7 Days, Previous 30 Days and month">
-  <img src="assets/screenshots/notelet-narrow-note.png" width="260" alt="Narrow layout in dark mode showing the sprint note with its points bar, ticked tickets and a worklog">
+  <img src="assets/screenshots/notelet-narrow-list.png" width="260" alt="Narrow layout in dark mode showing the notes list as Pinned and Notes cards with 24-hour times, the note count and the compose button at the bottom">
+  <img src="assets/screenshots/notelet-narrow-note.png" width="260" alt="Narrow layout in dark mode showing the task tracker with its status donut and the Last Sprint group, each task with its status under the title">
 </p>
 
 ## Install
@@ -35,7 +35,7 @@ Works the same in Edge (`edge://extensions`) and Brave (`brave://extensions`).
 
 Extensions loaded this way never update themselves.
 
-1. Export a backup (sidebar → **Export**).
+1. Export a backup (**⋯** above the notes list → **Export**).
 2. Replace the folder's contents with the new release.
 3. In `chrome://extensions`, click the reload icon on Notelet.
 
@@ -45,22 +45,22 @@ Your notes stay: Notelet's extension ID is fixed, so Chrome keeps the same stora
 
 Notes live only in this browser profile. **Removing the extension deletes all of them**, and Chrome offers no way to keep them. Export regularly; **Import** merges a backup back in (a note with the same ID is replaced).
 
-## Sprint notes
+## Task tracking
 
-Click the compose button and choose **New Sprint** (or press `Alt+S`). A sprint note starts the day after your last sprint ends, lasts two weeks and keeps the last target.
+Click the compose button and choose **New Task Tracking** (or press `Alt+S`). A tracker starts the working day after your last one ends, lasts ten working days (Monday to Friday), keeps the last target and copies the last tracker's group names.
 
-- The ring at the top shows completed points against the target, the dates and the sprint day.
-- Each checklist line is a ticket. Click its **points** chip to type a number and its **status** chip to move it to the next status.
-- Tick a ticket when its development is done; only ticked tickets count as completed. Status is for tracking only.
-- Tickets live in two sections, **Last Sprint** (for tracking) and **Current Sprint**. By default only Current Sprint counts towards the target; ⚙ lets you rename the sections and choose which ones count.
-- Drag a ticket by its ⋮⋮ grip to reorder it or move it to the other section, or press Alt+Up / Alt+Down with the cursor in it.
-- The ⚙ button changes this sprint's dates and target, and the section names and status names, colours and order shared by all sprints.
+- The donut shows the points of the counted groups by status, with done points against the target in the middle and what is still missing below.
+- Tasks live in groups, **Last Sprint** and **Current Sprint** to start with. Each row has a tick, the task, its points and a status dropdown. **+ Add Task** adds one; **+ Add Group** adds a group, and clicking a group's name renames it. The chevron folds a group away.
+- Tick a task when its development is done; only ticked tasks with points count as completed. Status is for tracking only.
+- In a task, Enter adds the next task and Backspace on an empty one removes it. Drag the ⋮⋮ grip, or press Alt+Up / Alt+Down, to move a task, also into another group.
+- ⚙ changes the dates and target, **Count points from** (tick any of this tracker's groups; only Current Sprint by default) and the status names, colours and order shared by all trackers.
+- Anything else goes in **Notes** under the groups, as ordinary note text.
 
-Notes from earlier versions that used a `Target: 18` line are converted to sprint notes automatically.
+Sprint notes from earlier versions, including ones with a `Target: 18` line, are converted automatically: their Last Sprint and Current Sprint lists become groups and the rest stays as notes.
 
 ## Keyboard shortcuts
 
-Click **?** in the sidebar for the full list. Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome reserves a shortcut (Ctrl+N, Ctrl+Shift+T) Notelet uses Alt instead.
+Choose **⋯ → Keyboard Shortcuts** above the notes list for the full list. Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome reserves a shortcut (Ctrl+N, Ctrl+Shift+T) Notelet uses Alt instead.
 
 ## Development
 
