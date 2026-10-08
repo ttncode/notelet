@@ -3,7 +3,7 @@ import { closeOnOutsideClick, downloadFile, openHelp, pickTextFile, showToast } 
 import { NoteEditor } from "./editor.js";
 import { matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
-import { groupNotes, isEmptyNote, isExpired, newNote, noteText, noteTitle, remoteNotesToApply } from "./model.js";
+import { isEmptyNote, isExpired, newNote, noteText, noteTitle, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
 import { migrateTargetNote, newSprint, nextStatusId, parsePoints, sameSettings, sprintStats, ticketSearchText } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
 import { renderSprintSummary, renderTicketChips } from "./sprint-view.js";
@@ -126,9 +126,10 @@ function renderList() {
   const list = byId("note-list");
   const listHadFocus = list.contains(document.activeElement);
   const visible = visibleNotes();
-  const groups = state.mode === "deleted" ? deletedGroups(visible) : groupNotes(visible, Date.now());
+  const inNotes = state.mode === "notes";
+  const groups = inNotes ? orderedGroups(visible) : deletedGroups(visible);
   // ponytail: whole list re-rendered on every edit; fine for hundreds of notes, virtualise if it ever lags.
-  renderNoteList(list, { groups, currentId: state.currentId, emptyText: state.query ? "No Results" : "No Notes", now: Date.now() });
+  renderNoteList(list, { groups, currentId: state.currentId, emptyText: state.query ? "No Results" : "No Notes", now: Date.now(), draggable: inNotes });
   if (listHadFocus) list.querySelector('[aria-current="true"]')?.focus();
   renderSidebarChrome();
 }
@@ -466,6 +467,7 @@ function wireSidebar() {
     if (row) selectNote(row.dataset.noteId);
   });
   list.addEventListener("keydown", onListKeydown);
+  wireNoteDragging();
   byId("search").addEventListener("input", (event) => {
     state.query = event.target.value.trim().toLowerCase();
     renderList();
@@ -475,11 +477,81 @@ function wireSidebar() {
 function onListKeydown(event) {
   const step = { ArrowDown: 1, ArrowUp: -1 }[event.key];
   if (!step) return;
+  if (event.altKey) {
+    moveFocusedNote(event, step);
+    return;
+  }
   const rows = [...byId("note-list").querySelectorAll(".note-row")];
   const next = rows[rows.indexOf(document.activeElement) + step];
   if (!next) return;
   event.preventDefault();
   selectNote(next.dataset.noteId, { reveal: false });
+}
+
+function moveFocusedNote(event, step) {
+  const id = document.activeElement?.dataset?.noteId;
+  if (!id || state.mode !== "notes") return;
+  event.preventDefault();
+  applyPlacement(id, stepNote(liveNotes(), { id, step }));
+  byId("note-list").querySelector(`[data-note-id="${id}"]`)?.focus();
+}
+
+const liveNotes = () => [...notes.values()].filter((note) => note.deletedAt === null);
+
+function applyPlacement(id, placement) {
+  if (!placement) return;
+  const updated = { ...notes.get(id), ...placement, updatedAt: Date.now() };
+  saves.cancel(id);
+  notes.set(id, updated);
+  store.saveNotes([updated]).catch(reportSaveError);
+  renderList();
+}
+
+function wireNoteDragging() {
+  const list = byId("note-list");
+  let draggedId = null;
+  const dropRow = (event) => {
+    const row = event.target.closest?.(".note-row");
+    return draggedId && row && row.dataset.noteId !== draggedId ? row : null;
+  };
+  list.addEventListener("dragstart", (event) => {
+    const row = event.target.closest?.(".note-row");
+    if (!row || state.mode !== "notes") return;
+    draggedId = row.dataset.noteId;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", draggedId);
+    row.classList.add("dragging");
+  });
+  list.addEventListener("dragover", (event) => {
+    const row = dropRow(event);
+    if (!row) return;
+    event.preventDefault();
+    markDropTarget(row, dropPlacement(row, event.clientY));
+  });
+  list.addEventListener("drop", (event) => {
+    const row = dropRow(event);
+    if (!row) return;
+    event.preventDefault();
+    applyPlacement(draggedId, placeNote(liveNotes(), { id: draggedId, targetId: row.dataset.noteId, placement: dropPlacement(row, event.clientY) }));
+  });
+  list.addEventListener("dragend", () => {
+    draggedId = null;
+    clearDropMarks();
+  });
+}
+
+function dropPlacement(row, y) {
+  const box = row.getBoundingClientRect();
+  return y < box.top + box.height / 2 ? "before" : "after";
+}
+
+function markDropTarget(row, placement) {
+  clearDropMarks();
+  row.classList.add(placement === "before" ? "drop-before" : "drop-after");
+}
+
+function clearDropMarks() {
+  byId("note-list").querySelectorAll(".drop-before, .drop-after, .dragging").forEach((row) => row.classList.remove("drop-before", "drop-after", "dragging"));
 }
 
 function onAppHotkey(event) {

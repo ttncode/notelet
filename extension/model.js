@@ -32,25 +32,43 @@ export const noteText = (html) => noteLines(html).join("\n");
 export const isEmptyNote = (html) => noteLines(html).length === 0;
 
 export function newNote(now) {
-  return { id: crypto.randomUUID(), html: EMPTY_NOTE_HTML, pinned: false, updatedAt: now, deletedAt: null };
+  return { id: crypto.randomUUID(), html: EMPTY_NOTE_HTML, pinned: false, updatedAt: now, deletedAt: null, position: now };
 }
 
-export function groupNotes(notes, now) {
-  const groups = new Map([["Pinned", []], ["Today", []], ["Previous 7 Days", []], ["Previous 30 Days", []]]);
-  for (const note of [...notes].sort((a, b) => b.updatedAt - a.updatedAt)) {
-    const label = note.pinned ? "Pinned" : dateGroupLabel(note.updatedAt, now);
-    if (!groups.has(label)) groups.set(label, []);
-    groups.get(label).push(note);
-  }
-  return [...groups].filter(([, grouped]) => grouped.length > 0).map(([label, grouped]) => ({ label, notes: grouped }));
+const POSITION_STEP = 1000;
+
+// Notes created before manual ordering existed keep their old place by edit time.
+const notePosition = (note) => note.position ?? note.updatedAt;
+const byPosition = (a, b) => notePosition(b) - notePosition(a);
+
+export function orderedGroups(notes) {
+  const pinned = notes.filter((note) => note.pinned).sort(byPosition);
+  const others = notes.filter((note) => !note.pinned).sort(byPosition);
+  if (pinned.length === 0) return others.length > 0 ? [{ label: null, notes: others }] : [];
+  return [{ label: "Pinned", notes: pinned }, ...(others.length > 0 ? [{ label: "Notes", notes: others }] : [])];
 }
 
-function dateGroupLabel(timestamp, now) {
-  const startOfToday = new Date(now).setHours(0, 0, 0, 0);
-  if (timestamp >= startOfToday) return "Today";
-  if (timestamp >= startOfToday - 7 * DAY_MS) return "Previous 7 Days";
-  if (timestamp >= startOfToday - 30 * DAY_MS) return "Previous 30 Days";
-  return new Date(timestamp).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+export function placeNote(notes, { id, targetId, placement }) {
+  const target = notes.find((note) => note.id === targetId);
+  const section = notes.filter((note) => note.id !== id && note.pinned === target.pinned).sort(byPosition);
+  const index = section.indexOf(target);
+  const above = placement === "before" ? section[index - 1] : target;
+  const below = placement === "before" ? target : section[index + 1];
+  return { position: positionBetween(above, below), pinned: target.pinned };
+}
+
+export function stepNote(notes, { id, step }) {
+  const moving = notes.find((note) => note.id === id);
+  const section = notes.filter((note) => note.pinned === moving.pinned).sort(byPosition);
+  const neighbour = section[section.indexOf(moving) + step];
+  if (!neighbour) return null;
+  return placeNote(notes, { id, targetId: neighbour.id, placement: step < 0 ? "before" : "after" });
+}
+
+function positionBetween(above, below) {
+  if (above && below) return (notePosition(above) + notePosition(below)) / 2;
+  if (below) return notePosition(below) + POSITION_STEP;
+  return notePosition(above) - POSITION_STEP;
 }
 
 export function isExpired(note, now) {
