@@ -98,6 +98,9 @@ button:disabled { cursor: default; }
 .note-row:hover { background: var(--hover); }
 .note-row[aria-current="true"]::before, .note-row[aria-current="true"] + .note-row::before { display: none; }
 .note-row[aria-current="true"] { background: var(--selected); }
+/* The card clips an outline, so keyboard focus shows as a fill (or a ring on the open note). */
+.note-row:focus-visible { outline: none; background: var(--fill); }
+.note-row[aria-current="true"]:focus-visible { background: var(--selected); box-shadow: inset 0 0 0 2px var(--accent); }
 .note-row.dragging { opacity: 0.45; }
 .note-row.drop-before { box-shadow: inset 0 3px 0 var(--accent) !important; }
 .note-row.drop-after { box-shadow: inset 0 -3px 0 var(--accent) !important; }
