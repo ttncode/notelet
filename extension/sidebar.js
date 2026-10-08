@@ -14,7 +14,9 @@ export function renderNoteList(container, { groups, currentId, emptyText, now, d
 function renderGroup({ label, notes }, { currentId, now, draggable }) {
   const section = createElement("section", "note-group");
   if (label) section.append(createElement("h2", "group-label", label));
-  section.append(...notes.map((note) => renderRow(note, { isCurrent: note.id === currentId, now, draggable })));
+  const card = createElement("div", "group-card");
+  card.append(...notes.map((note) => renderRow(note, { isCurrent: note.id === currentId, now, draggable })));
+  section.append(card);
   return section;
 }
 
