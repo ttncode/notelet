@@ -25,7 +25,6 @@ const FULL_PAGE_URL = chrome.runtime.getURL("notes.html");
 const IS_MAC = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platform);
 const SAVE_FAILED_MESSAGE = "Couldn't save your last change. Your text is still here — keep this tab open and try again, or export a backup.";
 
-const TRASH_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13"/></svg>';
 const THEME_ICONS = {
   system: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
   light: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
@@ -139,7 +138,7 @@ function renderList() {
   renderSidebarChrome();
 }
 
-const deletedGroups = (visible) => (visible.length > 0 ? [{ label: "Recently Deleted", notes: visible }] : []);
+const deletedGroups = (visible) => (visible.length > 0 ? [{ label: null, notes: visible }] : []);
 
 // Saves first: closing the popup window would otherwise cut off a pending write.
 async function openFullPage() {
@@ -163,33 +162,20 @@ function cycleTheme() {
 
 function showTheme(theme) {
   applyTheme(theme);
-  const button = byId("theme-button");
-  button.innerHTML = THEME_ICONS[theme] ?? THEME_ICONS.system;
-  button.setAttribute("aria-label", themeLabel(theme));
-  button.title = themeLabel(theme);
+  byId("theme-icon").innerHTML = THEME_ICONS[theme] ?? THEME_ICONS.system;
+  byId("theme-label").textContent = themeLabel(theme);
 }
 
 function renderSidebarChrome() {
   const inDeleted = state.mode === "deleted";
-  const deletedCount = [...notes.values()].filter((note) => note.deletedAt !== null).length;
-  const toggle = byId("deleted-toggle");
+  const all = [...notes.values()];
+  const deletedCount = all.filter((note) => note.deletedAt !== null).length;
+  const shownCount = inDeleted ? deletedCount : all.length - deletedCount;
   byId("list-title").textContent = inDeleted ? "Recently Deleted" : "Notes";
-  toggle.hidden = !inDeleted && deletedCount === 0;
-  renderDeletedToggle(toggle, { inDeleted, deletedCount });
-}
-
-function renderDeletedToggle(toggle, { inDeleted, deletedCount }) {
-  const label = inDeleted ? "Back to notes" : `Recently Deleted (${deletedCount})`;
-  toggle.setAttribute("aria-label", label);
-  toggle.title = label;
-  if (inDeleted) {
-    toggle.textContent = "‹ Notes";
-    return;
-  }
-  toggle.innerHTML = TRASH_ICON;
-  const count = document.createElement("span");
-  count.textContent = String(deletedCount);
-  toggle.append(count);
+  byId("deleted-toggle").hidden = !inDeleted;
+  byId("deleted-menu-item").hidden = inDeleted || deletedCount === 0;
+  byId("deleted-menu-label").textContent = `Recently Deleted (${deletedCount})`;
+  byId("note-count").textContent = `${shownCount} ${shownCount === 1 ? "Note" : "Notes"}`;
 }
 
 function renderEditorPane() {
@@ -475,7 +461,7 @@ function wireComposeMenu() {
   for (const id of ["new-note-button", "new-note-list-button"]) {
     byId(id).addEventListener("click", () => { anchor = byId(id); });
   }
-  menu.addEventListener("toggle", (event) => { if (event.newState === "open") positionMenuBelow(menu, anchor); });
+  menu.addEventListener("toggle", (event) => { if (event.newState === "open") positionMenu(menu, anchor); });
   for (const button of menu.querySelectorAll("[data-compose]")) {
     button.addEventListener("click", () => {
       menu.hidePopover();
@@ -493,6 +479,7 @@ function wireButtons() {
     "sidebar-toggle": () => layout.toggleSidebar(),
     "back-button": () => layout.showList(),
     "deleted-toggle": toggleDeletedView,
+    "deleted-menu-item": toggleDeletedView,
     "theme-button": cycleTheme,
     "open-full-page": () => openFullPage().catch((error) => console.error("Notelet: could not open the full page", error)),
     "export-button": exportNotes,
@@ -500,6 +487,17 @@ function wireButtons() {
     "help-button": () => openHelp({ dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version }),
   };
   for (const [id, handler] of Object.entries(handlers)) byId(id).addEventListener("click", handler);
+  wireListMenu();
+}
+
+// Theme stays open so it can be clicked through System, Light and Dark.
+function wireListMenu() {
+  const menu = byId("list-menu");
+  menu.addEventListener("toggle", (event) => { if (event.newState === "open") positionMenu(menu, byId("list-menu-button")); });
+  menu.addEventListener("click", (event) => {
+    const item = event.target.closest(".menu-item");
+    if (item && item.id !== "theme-button") menu.hidePopover();
+  });
 }
 
 function wireSidebar() {
@@ -612,12 +610,14 @@ function onAppHotkey(event) {
 }
 
 function positionFormatMenu(event) {
-  if (event.newState === "open") positionMenuBelow(event.target, byId("format-button"));
+  if (event.newState === "open") positionMenu(event.target, byId("format-button"));
 }
 
-function positionMenuBelow(menu, anchorElement) {
+// Right edge lines up with the button, like iOS; a menu that would run off the bottom opens upwards.
+function positionMenu(menu, anchorElement) {
   const anchor = anchorElement.getBoundingClientRect();
+  const fitsBelow = anchor.bottom + MENU_GAP_PX + menu.offsetHeight <= window.innerHeight - VIEWPORT_MARGIN_PX;
   const maxLeft = window.innerWidth - menu.offsetWidth - VIEWPORT_MARGIN_PX;
-  menu.style.top = `${anchor.bottom + MENU_GAP_PX}px`;
-  menu.style.left = `${Math.max(VIEWPORT_MARGIN_PX, Math.min(anchor.left, maxLeft))}px`;
+  menu.style.top = `${fitsBelow ? anchor.bottom + MENU_GAP_PX : anchor.top - MENU_GAP_PX - menu.offsetHeight}px`;
+  menu.style.left = `${Math.max(VIEWPORT_MARGIN_PX, Math.min(anchor.right - menu.offsetWidth, maxLeft))}px`;
 }
