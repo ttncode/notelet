@@ -31,11 +31,12 @@ test("going past the target reports how far over", () => {
   assert.equal(stats.over, 1.5);
 });
 
-test("the sprint day is clamped to the sprint", () => {
+test("sprint days count Monday to Friday only and stay within the sprint", () => {
   const html = sprintHtml();
-  assert.deepEqual(pick(sprintStats(html, SPRINT, new Date(2026, 9, 8))), { days: 12, day: 11, left: 1 });
-  assert.deepEqual(pick(sprintStats(html, SPRINT, new Date(2026, 8, 1))), { days: 12, day: 0, left: 12 });
-  assert.deepEqual(pick(sprintStats(html, SPRINT, new Date(2026, 11, 1))), { days: 12, day: 12, left: 0 });
+  assert.deepEqual(pick(sprintStats(html, SPRINT, new Date(2026, 9, 8))), { days: 10, day: 9, left: 1 });
+  assert.deepEqual(pick(sprintStats(html, SPRINT, new Date(2026, 8, 1))), { days: 10, day: 0, left: 10 });
+  assert.deepEqual(pick(sprintStats(html, SPRINT, new Date(2026, 11, 1))), { days: 10, day: 10, left: 0 });
+  assert.deepEqual(pick(sprintStats(html, SPRINT, new Date(2026, 9, 3))), { days: 10, day: 5, left: 5 });
 });
 const pick = ({ days, day, left }) => ({ days, day, left });
 
@@ -75,13 +76,13 @@ test("a first sprint starts today and lasts two weeks with target 18", () => {
   assert.equal(note.html, '<h1>Sprint</h1><ul class="checklist"><li data-checked="false" data-status="s1"><br></li></ul>');
 });
 
-test("a new sprint follows the latest live sprint and keeps its target", () => {
+test("a new sprint starts the next working day after the latest live sprint and lasts ten working days", () => {
   const notes = [
     sprintNote({ start: "2026-09-14", end: "2026-09-27", target: 20 }),
     sprintNote({ start: "2026-09-28", end: "2026-10-09", target: 16 }),
     sprintNote({ start: "2026-12-01", end: "2026-12-14", target: 99 }, 5),
   ];
-  assert.deepEqual(newSprint(NOW, notes, DEFAULT_STATUSES).sprint, { start: "2026-10-10", end: "2026-10-23", target: 16 });
+  assert.deepEqual(newSprint(NOW, notes, DEFAULT_STATUSES).sprint, { start: "2026-10-12", end: "2026-10-23", target: 16 });
 });
 
 test("settings need an end on or after the start, a positive target and labelled statuses", () => {
@@ -108,4 +109,9 @@ test("settings with the same statuses are the same whatever the key order", () =
   assert.equal(sameSettings({ statuses: DEFAULT_STATUSES }, reordered), true);
   assert.equal(sameSettings({ statuses: DEFAULT_STATUSES }, { statuses: DEFAULT_STATUSES.slice(1) }), false);
   assert.equal(sameSettings({ statuses: DEFAULT_STATUSES }, { statuses: [{ ...DEFAULT_STATUSES[0], color: "#000000" }, ...DEFAULT_STATUSES.slice(1)] }), false);
+});
+
+test("a first sprint created on a weekend starts the following Monday", () => {
+  const saturday = new Date(2026, 9, 10, 9, 0).getTime();
+  assert.deepEqual(newSprint(saturday, [], DEFAULT_STATUSES).sprint, { start: "2026-10-12", end: "2026-10-23", target: 18 });
 });
