@@ -25,23 +25,38 @@ export function setBlockType(block, tag) {
   return replacement;
 }
 
+// Every list around the item is split at it, so the item and everything after it keep
+// their order: the blocks go after the outermost list, followed by the trailing items.
 function moveItemOutOfList(item, blocks) {
   const list = item.parentElement;
-  const topList = outermostList(list);
-  const rest = topList === list ? listAfter(item) : null;
-  topList.after(...blocks, ...(rest ? [rest] : []));
+  let node = item;
+  let trailing = [];
+  while (LIST_CONTAINER_TAGS.has(node.parentElement?.tagName)) {
+    const parent = node.parentElement;
+    trailing = [...trailing, ...siblingsAfter(node)];
+    if (LIST_TAGS.has(parent.tagName) && trailing.length > 0) {
+      const shell = parent.cloneNode(false);
+      shell.append(...trailing);
+      trailing = [shell];
+    }
+    node = parent;
+  }
+  node.after(...blocks, ...trailing);
   item.remove();
-  if (list.children.length === 0) list.remove();
+  removeEmptyLists(list);
 }
 
-function listAfter(item) {
-  const rest = item.parentElement.cloneNode(false);
-  while (item.nextSibling) rest.append(item.nextSibling);
-  return rest.hasChildNodes() ? rest : null;
+function siblingsAfter(node) {
+  const siblings = [];
+  for (let sibling = node.nextSibling; sibling; sibling = sibling.nextSibling) siblings.push(sibling);
+  return siblings;
 }
 
-function outermostList(list) {
-  let top = list;
-  while (top.parentElement && LIST_CONTAINER_TAGS.has(top.parentElement.tagName)) top = top.parentElement;
-  return top;
+function removeEmptyLists(list) {
+  let current = list;
+  while (current && LIST_TAGS.has(current.tagName) && current.children.length === 0) {
+    const parent = current.parentElement;
+    current.remove();
+    current = parent;
+  }
 }
