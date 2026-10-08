@@ -57,6 +57,17 @@ export class NoteEditor {
     return this.#element.contains(document.activeElement);
   }
 
+  // Back to where the caret last was in this note, or to its start.
+  focus() {
+    if (!this.#savedRange) {
+      this.focusStart();
+      return;
+    }
+    this.#element.focus();
+    document.getSelection().removeAllRanges();
+    document.getSelection().addRange(this.#savedRange);
+  }
+
   // A new note's empty title line is where typing starts.
   focusStart() {
     this.#element.focus();

@@ -54,3 +54,9 @@ test("lists use Notes' Shift+7, 8 and 9, matched by key position so any keyboard
   assert.equal(matchHotkey(key("Digit9", { ctrlKey: true, shiftKey: true }), false), "numbered");
   assert.equal(hotkeyLabel(HOTKEYS.find((hotkey) => hotkey.action === "numbered"), false), "Ctrl+Shift+9");
 });
+
+test("Alt+1, Alt+2 and Alt+3 go to the notes list, search and the note", () => {
+  assert.equal(matchHotkey(key("Digit1", { altKey: true }), false), "focusList");
+  assert.equal(matchHotkey(key("Digit2", { altKey: true }), false), "search");
+  assert.equal(matchHotkey(key("Digit3", { altKey: true }), false), "focusEditor");
+});

@@ -570,6 +570,12 @@ function onAppHotkey(event) {
     event.preventDefault();
     layout.showList();
     byId("search").focus();
+  } else if (action === "focusList") {
+    event.preventDefault();
+    focusFirstNote();
+  } else if (action === "focusEditor") {
+    event.preventDefault();
+    focusEditor();
   } else if (action === "newNote") {
     event.preventDefault();
     createNote();
@@ -577,6 +583,17 @@ function onAppHotkey(event) {
     event.preventDefault();
     createSprint();
   }
+}
+
+function focusFirstNote() {
+  layout.showList();
+  byId("note-list").querySelector(".note-row")?.focus();
+}
+
+function focusEditor() {
+  if (!notes.has(state.currentId)) return;
+  layout.showEditor();
+  editor.focus();
 }
 
 function positionFormatMenu(event) {
