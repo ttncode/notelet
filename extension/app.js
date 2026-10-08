@@ -1,11 +1,12 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
-import { renderChart } from "./chart.js";
 import { downloadFile, openHelp, pickTextFile, showToast } from "./dialogs.js";
 import { NoteEditor } from "./editor.js";
 import { matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { groupNotes, isEmptyNote, isExpired, newNote, noteText, noteTitle, remoteNotesToApply } from "./model.js";
-import { computePoints } from "./points.js";
+import { migrateTargetNote, newSprint, nextStatusId, parsePoints, sprintStats, ticketSearchText } from "./sprint.js";
+import { openSprintSettings } from "./sprint-settings.js";
+import { renderSprintSummary, renderTicketChips } from "./sprint-view.js";
 import { sanitizeHtml } from "./sanitize.js";
 import { createSaveScheduler } from "./scheduler.js";
 import { renderNoteList } from "./sidebar.js";
@@ -23,7 +24,7 @@ const byId = (id) => document.getElementById(id);
 const store = createStore(chrome.storage.local);
 const notes = new Map();
 const saves = createSaveScheduler({ delayMs: SAVE_DELAY_MS, maxWaitMs: SAVE_MAX_WAIT_MS, save: saveNow });
-const state = { currentId: null, mode: "notes", query: "", ui: null };
+const state = { currentId: null, mode: "notes", query: "", ui: null, settings: null };
 let editor;
 let layout;
 let uiSaveTimer = null;
@@ -37,10 +38,12 @@ async function main() {
   const loaded = await store.load();
   loaded.notes.forEach((note) => notes.set(note.id, note));
   state.ui = loaded.ui;
+  state.settings = loaded.settings;
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
   layout = setupLayout({ resizer: byId("resizer"), ui: state.ui, onUiChange: saveUiSoon });
   wireControls();
+  new ResizeObserver(() => renderChips()).observe(byId("editor"));
   store.onChange(applyRemoteChanges);
   openInitialNote();
 }
@@ -65,8 +68,12 @@ function visibleNotes() {
   const showDeleted = state.mode === "deleted";
   return [...notes.values()]
     .filter((note) => (note.deletedAt !== null) === showDeleted)
-    .filter((note) => state.query === "" || noteText(note.html).toLowerCase().includes(state.query))
+    .filter((note) => state.query === "" || searchText(note).toLowerCase().includes(state.query))
     .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function searchText(note) {
+  return note.sprint ? `${noteText(note.html)}\n${ticketSearchText(note.html, state.settings.statuses)}` : noteText(note.html);
 }
 
 function selectFirstVisible() {
@@ -145,8 +152,53 @@ function renderEditorPane() {
 }
 
 function renderNoteDetails(note) {
-  renderChart(byId("chart"), note ? computePoints(note.html) : null);
+  const sprint = note?.sprint ?? null;
+  byId("editor").classList.toggle("sprint", sprint !== null);
+  const stats = sprint ? sprintStats(note.html, sprint, new Date()) : null;
+  renderSprintSummary(byId("sprint-summary"), { stats, sprint, onSettings: openSettings });
+  renderChips();
   document.title = note ? `${noteTitle(note.html)} – Notelet` : "Notelet";
+}
+
+function renderChips() {
+  const note = notes.get(state.currentId);
+  renderTicketChips(byId("ticket-chips"), {
+    editorElement: byId("editor"),
+    statuses: note?.sprint ? state.settings.statuses : null,
+    editable: state.mode === "notes",
+    onPoints: setTicketPoints,
+    onStatus: cycleTicketStatus,
+  });
+}
+
+function setTicketPoints(item, raw) {
+  const points = raw === undefined ? undefined : parsePoints(raw);
+  if (points === undefined) {
+    renderChips();
+    return;
+  }
+  editor.updateTicket(item, (ticket) => {
+    if (points === null) ticket.removeAttribute("data-points");
+    else ticket.setAttribute("data-points", String(points));
+  });
+  renderChips();
+}
+
+function cycleTicketStatus(item) {
+  editor.updateTicket(item, (ticket) => ticket.setAttribute("data-status", nextStatusId(state.settings.statuses, ticket.getAttribute("data-status"))));
+}
+
+function openSettings() {
+  const note = notes.get(state.currentId);
+  if (!note?.sprint) return;
+  openSprintSettings({ dialog: byId("sprint-settings"), sprint: note.sprint, statuses: state.settings.statuses, onSave: saveSprintSettings });
+}
+
+function saveSprintSettings({ sprint, statuses }) {
+  state.settings = { statuses };
+  store.saveSettings(state.settings).catch(reportSaveError);
+  updateCurrent(() => ({ sprint }));
+  renderAll();
 }
 
 const formatEditedDate = (timestamp) => new Date(timestamp).toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" });
@@ -193,9 +245,16 @@ function updateCurrent(change) {
 }
 
 function createNote() {
+  openCreated(newNote(Date.now()));
+}
+
+function createSprint() {
+  openCreated(newSprint(Date.now(), [...notes.values()], state.settings.statuses));
+}
+
+function openCreated(note) {
   state.mode = "notes";
   clearSearch();
-  const note = newNote(Date.now());
   notes.set(note.id, note);
   store.saveNotes([note]).catch(reportSaveError);
   selectNote(note.id);
@@ -238,7 +297,7 @@ function toggleDeletedView() {
 function exportNotes() {
   flushSaves();
   const now = new Date();
-  downloadFile(createBackup([...notes.values()], now), backupFileName(now));
+  downloadFile(createBackup([...notes.values()], state.settings, now), backupFileName(now));
 }
 
 async function importNotes() {
@@ -249,7 +308,9 @@ async function importNotes() {
     showToast(result.error);
     return;
   }
-  const imported = result.notes.map((note) => ({ ...note, html: sanitizeHtml(note.html) }));
+  await adoptImportedSettings(result.settings);
+  const today = new Date();
+  const imported = result.notes.map((note) => migrateTargetNote({ ...note, html: sanitizeHtml(note.html) }, state.settings.statuses, today));
   await store.saveNotes(imported);
   imported.forEach((note) => {
     saves.cancel(note.id);
@@ -259,17 +320,25 @@ async function importNotes() {
   showToast(`Imported ${imported.length} ${imported.length === 1 ? "note" : "notes"}.`);
 }
 
+async function adoptImportedSettings(settings) {
+  if (!settings || JSON.stringify(settings) === JSON.stringify(state.settings)) return;
+  if (!window.confirm("Replace your status settings with the ones in this backup?")) return;
+  state.settings = settings;
+  await store.saveSettings(settings);
+}
+
 function reportImportError(error) {
   console.error("Notelet: import failed", error);
   showToast("Import failed; your existing notes were not changed.");
 }
 
-function applyRemoteChanges({ updated, removedIds }) {
+function applyRemoteChanges({ updated, removedIds, settings }) {
+  if (settings) state.settings = settings;
   const newer = remoteNotesToApply(updated, { local: notes, isPending: saves.isPending });
   const removed = removedIds.filter((id) => notes.has(id) && !saves.isPending(id));
-  if (newer.length === 0 && removed.length === 0) return;
   newer.forEach((note) => notes.set(note.id, note));
   removed.forEach((id) => notes.delete(id));
+  if (newer.length === 0 && removed.length === 0 && !settings) return;
   refreshAfterOutsideChange(newer.map((note) => note.id));
 }
 
@@ -307,12 +376,27 @@ function wireEditorActions() {
   }
   byId("format-button").addEventListener("mousedown", (event) => event.preventDefault());
   menu.addEventListener("toggle", positionFormatMenu);
+  wireComposeMenu();
+}
+
+function wireComposeMenu() {
+  const menu = byId("compose-menu");
+  let anchor = byId("new-note-button");
+  for (const id of ["new-note-button", "new-note-list-button"]) {
+    byId(id).addEventListener("click", () => { anchor = byId(id); });
+  }
+  menu.addEventListener("toggle", (event) => { if (event.newState === "open") positionMenuBelow(menu, anchor); });
+  for (const button of menu.querySelectorAll("[data-compose]")) {
+    button.addEventListener("click", () => {
+      menu.hidePopover();
+      if (button.dataset.compose === "sprint") createSprint();
+      else createNote();
+    });
+  }
 }
 
 function wireButtons() {
   const handlers = {
-    "new-note-button": createNote,
-    "new-note-list-button": createNote,
     "pin-button": togglePin,
     "delete-button": deleteCurrent,
     "recover-button": recoverCurrent,
@@ -358,13 +442,18 @@ function onAppHotkey(event) {
   } else if (action === "newNote") {
     event.preventDefault();
     createNote();
+  } else if (action === "newSprint") {
+    event.preventDefault();
+    createSprint();
   }
 }
 
 function positionFormatMenu(event) {
-  if (event.newState !== "open") return;
-  const anchor = byId("format-button").getBoundingClientRect();
-  const menu = event.target;
+  if (event.newState === "open") positionMenuBelow(event.target, byId("format-button"));
+}
+
+function positionMenuBelow(menu, anchorElement) {
+  const anchor = anchorElement.getBoundingClientRect();
   const maxLeft = window.innerWidth - menu.offsetWidth - VIEWPORT_MARGIN_PX;
   menu.style.top = `${anchor.bottom + MENU_GAP_PX}px`;
   menu.style.left = `${Math.max(VIEWPORT_MARGIN_PX, Math.min(anchor.left, maxLeft))}px`;

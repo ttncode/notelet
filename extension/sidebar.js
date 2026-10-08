@@ -1,5 +1,6 @@
 import { createElement } from "./dom.js";
 import { notePreview, noteTitle } from "./model.js";
+import { formatSprintRange } from "./sprint.js";
 
 export function renderNoteList(container, { groups, currentId, emptyText, now }) {
   if (groups.length === 0) {
@@ -21,7 +22,7 @@ function renderRow(note, isCurrent, now) {
   row.dataset.noteId = note.id;
   if (isCurrent) row.setAttribute("aria-current", "true");
   const meta = createElement("span", "note-row-meta");
-  meta.append(createElement("span", "note-row-date", formatRowDate(note.updatedAt, now)), createElement("span", "note-row-preview", notePreview(note.html)));
+  meta.append(createElement("span", "note-row-date", formatRowDate(note.updatedAt, now)), createElement("span", "note-row-preview", note.sprint ? formatSprintRange(note.sprint) : notePreview(note.html)));
   row.append(createElement("span", "note-row-title", noteTitle(note.html)), meta);
   return row;
 }
