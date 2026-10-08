@@ -80,7 +80,7 @@ button:disabled { cursor: default; }
 
 .app { display: grid; grid-template-columns: var(--sidebar-width) 1px minmax(0, 1fr); height: 100vh; }
 
-.sidebar { grid-column: 1; display: flex; flex-direction: column; min-width: 0; background: var(--page); }
+.sidebar { grid-column: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--page); }
 .sidebar-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 0.75rem 0.75rem 0.25rem 1rem; }
 .back-link { flex-basis: 100%; margin-left: -0.5rem; padding-left: 0.25rem; text-align: left; font-size: 1rem; }
 .back-link + .sidebar-title { font-size: 1.5rem; }
@@ -121,7 +121,7 @@ body.viewing-deleted #new-note-list-button { visibility: hidden; }
 .resizer { grid-column: 2; position: relative; background: var(--separator); cursor: col-resize; }
 .resizer::after { content: ""; position: absolute; inset: 0 -4px; }
 
-.editor-pane { grid-column: 3; display: flex; flex-direction: column; min-width: 0; }
+.editor-pane { grid-column: 3; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .toolbar { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; }
 body:not(.popup-view) #open-full-page { display: none; }
 @media (min-width: 700px) { body:not(.sidebar-hidden) #new-note-button { display: none; } }
