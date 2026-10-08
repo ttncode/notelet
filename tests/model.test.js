@@ -2,7 +2,7 @@ import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  EMPTY_NOTE_HTML, groupNotes, isEmptyNote, isExpired, newNote, noteLines, notePreview, noteText, noteTitle,
+  EMPTY_NOTE_HTML, groupNotes, isEmptyNote, isExpired, newNote, noteLines, notePreview, noteText, noteTitle, remoteNotesToApply,
 } from "../extension/model.js";
 
 const DAY_MS = 86_400_000;
@@ -68,4 +68,16 @@ test("deleted notes expire after 30 days", () => {
   assert.equal(isExpired(note({ deletedAt: NOW - 31 * DAY_MS }), NOW), true);
   assert.equal(isExpired(note({ deletedAt: NOW - 29 * DAY_MS }), NOW), false);
   assert.equal(isExpired(note(), NOW), false);
+});
+
+test("a change from another tab is taken only when newer and not being edited here", () => {
+  const local = new Map([["a", note({ id: "a", updatedAt: 10 })], ["b", note({ id: "b", updatedAt: 10 })], ["c", note({ id: "c", updatedAt: 10 })]]);
+  const incoming = [
+    note({ id: "a", updatedAt: 20 }),
+    note({ id: "b", updatedAt: 5 }),
+    note({ id: "c", updatedAt: 20 }),
+    note({ id: "new", updatedAt: 1 }),
+  ];
+  const accepted = remoteNotesToApply(incoming, { local, isPending: (id) => id === "c" });
+  assert.deepEqual(accepted.map((n) => n.id), ["a", "new"]);
 });
