@@ -4,6 +4,9 @@ export const HOTKEYS = [
   { action: "heading", label: "Heading", mod: true, shift: true, code: "KeyH" },
   { action: "subheading", label: "Subheading", mod: true, shift: true, code: "KeyJ" },
   { action: "body", label: "Body", mod: true, shift: true, code: "KeyB" },
+  { action: "bulleted", label: "Bulleted list", mod: true, shift: true, code: "Digit7" },
+  { action: "dashed", label: "Dashed list", mod: true, shift: true, code: "Digit8" },
+  { action: "numbered", label: "Numbered list", mod: true, shift: true, code: "Digit9" },
   { action: "checklist", label: "Checklist", mod: true, shift: true, code: "KeyL" },
   { action: "toggleCheck", label: "Tick / untick item", mod: true, shift: true, code: "KeyU" },
   { action: "bold", label: "Bold", mod: true, code: "KeyB", native: true },
@@ -35,6 +38,6 @@ export function matchHotkey(event, isMac) {
 export function hotkeyLabel(hotkey, isMac) {
   const names = isMac ? { mod: "⌘", alt: "⌥", shift: "⇧" } : { mod: "Ctrl", alt: "Alt", shift: "Shift" };
   const parts = ["mod", "alt", "shift"].filter((modifier) => hotkey[modifier]).map((modifier) => names[modifier]);
-  parts.push(hotkey.code.replace("Key", ""));
+  parts.push(hotkey.code.replace(/^(Key|Digit)/, ""));
   return parts.join(isMac ? "" : "+");
 }

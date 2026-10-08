@@ -47,3 +47,10 @@ test("labels use each platform's modifier names", () => {
 test("Alt+S starts a new sprint", () => {
   assert.equal(matchHotkey(key("KeyS", { altKey: true }), false), "newSprint");
 });
+
+test("lists use Notes' Shift+7, 8 and 9, matched by key position so any keyboard layout works", () => {
+  assert.equal(matchHotkey(key("Digit7", { ctrlKey: true, shiftKey: true }), false), "bulleted");
+  assert.equal(matchHotkey(key("Digit8", { metaKey: true, shiftKey: true }), true), "dashed");
+  assert.equal(matchHotkey(key("Digit9", { ctrlKey: true, shiftKey: true }), false), "numbered");
+  assert.equal(hotkeyLabel(HOTKEYS.find((hotkey) => hotkey.action === "numbered"), false), "Ctrl+Shift+9");
+});
