@@ -27,6 +27,8 @@ In a narrow window Notelet switches to the iPhone layout: the list first, then t
 3. Click **Load unpacked** and choose the unzipped folder (the one containing `manifest.json`).
 4. Pin Notelet to the toolbar. To open it from the keyboard, set a shortcut at `chrome://extensions/shortcuts` (suggested: `Alt+.`).
 
+Clicking the Notelet icon opens a small window at the top right that you can move and resize anywhere; it remembers where you left it. The ⤢ button in that window opens Notelet as a full page.
+
 Works the same in Edge (`edge://extensions`) and Brave (`brave://extensions`).
 
 ## Update
