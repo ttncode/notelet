@@ -1,6 +1,7 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
 import { closeOnOutsideClick, downloadFile, openHelp, pickTextFile, showToast } from "./dialogs.js";
 import { NoteEditor } from "./editor.js";
+import { formatEditedDate } from "./format.js";
 import { matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { isEmptyNote, isExpired, newNote, noteText, noteTitle, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
@@ -265,8 +266,6 @@ function saveSprintSettings({ sprint, statuses, sections }) {
   updateCurrent(() => ({ sprint }));
   renderAll();
 }
-
-const formatEditedDate = (timestamp) => new Date(timestamp).toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" });
 
 function onEditorChange(changedHtml) {
   const note = notes.get(state.currentId);

@@ -1,4 +1,5 @@
 import { createElement } from "./dom.js";
+import { formatRowDate } from "./format.js";
 import { notePreview, noteTitle } from "./model.js";
 import { formatSprintRange } from "./sprint.js";
 
@@ -27,10 +28,4 @@ function renderRow(note, { isCurrent, now, draggable }) {
   meta.append(createElement("span", "note-row-date", formatRowDate(note.updatedAt, now)), createElement("span", "note-row-preview", note.sprint ? formatSprintRange(note.sprint) : notePreview(note.html)));
   row.append(createElement("span", "note-row-title", noteTitle(note.html)), meta);
   return row;
-}
-
-function formatRowDate(timestamp, now) {
-  const date = new Date(timestamp);
-  if (date.toDateString() === new Date(now).toDateString()) return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return date.toLocaleDateString();
 }

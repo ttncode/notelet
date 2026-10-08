@@ -1,3 +1,4 @@
+import { formatDayMonth } from "./format.js";
 import { newNote, noteLines, noteTitle, ownText, parseHtml } from "./model.js";
 import { convertTicket } from "./ticket-text.js";
 import { countedTicketItems, defaultSections, ensureSprintSections, isValidSections } from "./sections.js";
@@ -124,7 +125,7 @@ function readPoints(value) {
 
 const roundPoints = (value) => Math.round(value * 100) / 100;
 
-export const formatShortDate = (iso) => new Date(utcDay(iso)).toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+export const formatShortDate = (iso) => formatDayMonth(utcDay(iso));
 
 export const formatSprintRange = (sprint) => `${formatShortDate(sprint.start)} – ${formatShortDate(sprint.end)}`;
 
