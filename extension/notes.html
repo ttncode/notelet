@@ -98,6 +98,13 @@
         <label class="field">End<input id="sprint-end" type="date" required></label>
         <label class="field">Target points<input id="sprint-target" type="number" min="0.5" step="0.5" required></label>
       </div>
+      <div class="status-head"><h3>Sections</h3><span>Shared by all sprints · only ticked tickets in counted sections add points</span></div>
+      <div class="section-grid">
+        <label class="field">First section<input id="section-last-label" type="text" maxlength="30" required></label>
+        <label class="check-field"><input id="section-last-counts" type="checkbox"> Count points</label>
+        <label class="field">Second section<input id="section-current-label" type="text" maxlength="30" required></label>
+        <label class="check-field"><input id="section-current-counts" type="checkbox"> Count points</label>
+      </div>
       <div class="status-head"><h3>Statuses</h3><span>Shared by all sprints · clicking a status moves to the next one in this order</span></div>
       <ul class="status-list" id="sprint-statuses"></ul>
       <button class="text-button" type="button" id="sprint-add-status">+ Add status</button>
