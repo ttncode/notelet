@@ -52,7 +52,9 @@ Click the compose button and choose **New Sprint** (or press `Alt+S`). A sprint 
 - The ring at the top shows completed points against the target, the dates and the sprint day.
 - Each checklist line is a ticket. Click its **points** chip to type a number and its **status** chip to move it to the next status.
 - Tick a ticket when its development is done; only ticked tickets count as completed. Status is for tracking only.
-- The ⚙ button changes this sprint's dates and target, and the status names, colours and order shared by all sprints.
+- Tickets live in two sections, **Last Sprint** (for tracking) and **Current Sprint**. By default only Current Sprint counts towards the target; ⚙ lets you rename the sections and choose which ones count.
+- Drag a ticket by its ⋮⋮ grip to reorder it or move it to the other section, or press Alt+Up / Alt+Down with the cursor in it.
+- The ⚙ button changes this sprint's dates and target, and the section names and status names, colours and order shared by all sprints.
 
 Notes from earlier versions that used a `Target: 18` line are converted to sprint notes automatically.
 
