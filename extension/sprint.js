@@ -3,7 +3,9 @@ import { newNote, noteLines, noteTitle, ownText, parseHtml } from "./model.js";
 const DAY_MS = 86_400_000;
 const TICKET_SELECTOR = "ul.checklist > li";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const SPRINT_LENGTH_DAYS = 14;
+const SPRINT_WORKING_DAYS = 10;
+const SATURDAY = 6;
+const SUNDAY = 0;
 const HALF_YEAR_DAYS = 183;
 const DEFAULT_TARGET = 18;
 const MAX_LABEL_LENGTH = 20;
@@ -58,14 +60,35 @@ export function isIsoDate(value) {
   return addDays(value, 0) === value;
 }
 
-const daysBetween = (from, to) => Math.round((utcDay(to) - utcDay(from)) / DAY_MS);
+
+const isWorkingDay = (iso) => ![SATURDAY, SUNDAY].includes(new Date(utcDay(iso)).getUTCDay());
+
+function workingDaysBetween(from, to) {
+  let count = 0;
+  for (let day = from; day <= to; day = addDays(day, 1)) if (isWorkingDay(day)) count += 1;
+  return count;
+}
+
+const nextWorkingDay = (iso) => (isWorkingDay(iso) ? iso : nextWorkingDay(addDays(iso, 1)));
+
+function addWorkingDays(iso, count) {
+  let day = iso;
+  for (let added = 0; added < count; added += 1) day = nextWorkingDay(addDays(day, 1));
+  return day;
+}
+
+function sprintDatesFrom(day) {
+  const start = nextWorkingDay(day);
+  return { start, end: addWorkingDays(start, SPRINT_WORKING_DAYS - 1) };
+}
 
 export function sprintStats(html, sprint, today) {
   const tickets = ticketItems(html);
   const pointed = tickets.filter((ticket) => ticket.points !== null);
   const completed = roundPoints(pointed.filter((ticket) => ticket.checked).reduce((sum, ticket) => sum + ticket.points, 0));
-  const days = daysBetween(sprint.start, sprint.end) + 1;
-  const day = Math.min(days, Math.max(0, daysBetween(sprint.start, isoDate(today)) + 1));
+  const days = Math.max(1, workingDaysBetween(sprint.start, sprint.end));
+  const todayIso = isoDate(today);
+  const day = todayIso < sprint.start ? 0 : Math.min(days, workingDaysBetween(sprint.start, todayIso < sprint.end ? todayIso : sprint.end));
   return {
     target: sprint.target,
     completed,
@@ -106,8 +129,8 @@ export function newSprint(now, notes, statuses) {
   const latest = notes
     .filter((note) => note.sprint && note.deletedAt === null)
     .sort((a, b) => b.sprint.end.localeCompare(a.sprint.end))[0];
-  const start = latest ? addDays(latest.sprint.end, 1) : isoDate(new Date(now));
-  const sprint = { start, end: addDays(start, SPRINT_LENGTH_DAYS - 1), target: latest?.sprint.target ?? DEFAULT_TARGET };
+  const dates = sprintDatesFrom(latest ? addDays(latest.sprint.end, 1) : isoDate(new Date(now)));
+  const sprint = { ...dates, target: latest?.sprint.target ?? DEFAULT_TARGET };
   const html = `<h1>Sprint</h1><ul class="checklist"><li data-checked="false" data-status="${statuses[0].id}"><br></li></ul>`;
   return { ...newNote(now), html, sprint };
 }
@@ -174,10 +197,7 @@ function toIso(year, month, day) {
   return isIsoDate(iso) ? iso : null;
 }
 
-function defaultDates(today) {
-  const start = isoDate(today);
-  return { start, end: addDays(start, SPRINT_LENGTH_DAYS - 1) };
-}
+const defaultDates = (today) => sprintDatesFrom(isoDate(today));
 
 function convertTicket(item, statuses) {
   const nodes = ownTextNodes(item);
