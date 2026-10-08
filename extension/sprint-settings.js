@@ -4,13 +4,14 @@ import { DEFAULT_STATUSES, newStatusId, validateSprintSettings } from "./sprint.
 const NEW_STATUS_COLOR = "#64d2ff";
 const MAX_LABEL_LENGTH = 20;
 
-export function openSprintSettings({ dialog, sprint, statuses, onSave }) {
+export function openSprintSettings({ dialog, sprint, settings, onSave }) {
   const field = (id) => dialog.querySelector(`#${id}`);
   const list = field("sprint-statuses");
   field("sprint-start").value = sprint.start;
   field("sprint-end").value = sprint.end;
   field("sprint-target").value = String(sprint.target);
-  fillStatuses(list, statuses);
+  fillStatuses(list, settings.statuses);
+  fillSections(field, settings.sections);
   field("sprint-error").textContent = "";
   field("sprint-add-status").onclick = () => addStatus(list);
   field("sprint-reset-statuses").onclick = () => fillStatuses(list, DEFAULT_STATUSES);
@@ -25,6 +26,7 @@ function submit(event, { field, list, onSave }) {
     end: field("sprint-end").value,
     target: parseFloat(field("sprint-target").value),
     statuses: readStatuses(list),
+    sections: readSections(field),
   };
   const error = validateSprintSettings(values);
   if (error) {
@@ -32,7 +34,24 @@ function submit(event, { field, list, onSave }) {
     field("sprint-error").textContent = error;
     return;
   }
-  onSave({ sprint: { start: values.start, end: values.end, target: values.target }, statuses: values.statuses });
+  onSave({ sprint: { start: values.start, end: values.end, target: values.target }, statuses: values.statuses, sections: values.sections });
+}
+
+const SECTION_IDS = ["last", "current"];
+
+function fillSections(field, sections) {
+  sections.forEach((section) => {
+    field(`section-${section.id}-label`).value = section.label;
+    field(`section-${section.id}-counts`).checked = section.counts;
+  });
+}
+
+function readSections(field) {
+  return SECTION_IDS.map((id) => ({
+    id,
+    label: field(`section-${id}-label`).value.trim(),
+    counts: field(`section-${id}-counts`).checked,
+  }));
 }
 
 function readStatuses(list) {

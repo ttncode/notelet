@@ -4,9 +4,10 @@ import { NoteEditor } from "./editor.js";
 import { matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { isEmptyNote, isExpired, newNote, noteText, noteTitle, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
-import { migrateTargetNote, newSprint, nextStatusId, parsePoints, sameSettings, sprintStats, ticketSearchText } from "./sprint.js";
+import { ensureSprintSections } from "./sections.js";
+import { newSprint, nextStatusId, normalizeSettings, parsePoints, sameSettings, sprintStats, ticketSearchText, upgradeNote } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
-import { renderSprintSummary, renderTicketChips } from "./sprint-view.js";
+import { renderSprintSummary, renderTicketChips, wireTicketDragging } from "./sprint-view.js";
 import { sanitizeHtml } from "./sanitize.js";
 import { createSaveScheduler } from "./scheduler.js";
 import { renderNoteList } from "./sidebar.js";
@@ -208,7 +209,8 @@ function renderEditorPane() {
 function renderNoteDetails(note) {
   const sprint = note?.sprint ?? null;
   byId("editor").classList.toggle("sprint", sprint !== null);
-  const stats = sprint ? sprintStats(note.html, sprint, new Date()) : null;
+  const stats = sprint ? sprintStats(note.html, { sprint, today: new Date(), sections: state.settings.sections }) : null;
+  if (sprint) syncSectionHeadings();
   renderSprintSummary(byId("sprint-summary"), { stats, sprint, onSettings: openSettings });
   renderChips();
   document.title = note ? `${noteTitle(note.html)} – Notelet` : "Notelet";
@@ -245,11 +247,20 @@ function cycleTicketStatus(item) {
 function openSettings() {
   const note = notes.get(state.currentId);
   if (!note?.sprint) return;
-  openSprintSettings({ dialog: byId("sprint-settings"), sprint: note.sprint, statuses: state.settings.statuses, onSave: saveSprintSettings });
+  openSprintSettings({ dialog: byId("sprint-settings"), sprint: note.sprint, settings: state.settings, onSave: saveSprintSettings });
 }
 
-function saveSprintSettings({ sprint, statuses }) {
-  state.settings = { statuses };
+// Section headings show the shared labels and cannot be typed into or deleted.
+function syncSectionHeadings() {
+  for (const heading of byId("editor").querySelectorAll("h2[data-section]")) {
+    const label = state.settings.sections.find((section) => section.id === heading.dataset.section)?.label;
+    if (heading.contentEditable !== "false") heading.contentEditable = "false";
+    if (label && heading.textContent !== label) heading.textContent = label;
+  }
+}
+
+function saveSprintSettings({ sprint, statuses, sections }) {
+  state.settings = { statuses, sections };
   store.saveSettings(state.settings).catch(reportSaveError);
   updateCurrent(() => ({ sprint }));
   renderAll();
@@ -257,15 +268,28 @@ function saveSprintSettings({ sprint, statuses }) {
 
 const formatEditedDate = (timestamp) => new Date(timestamp).toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" });
 
-function onEditorChange(html) {
+function onEditorChange(changedHtml) {
   const note = notes.get(state.currentId);
-  if (!note || note.deletedAt !== null || note.html === html) return;
+  if (!note || note.deletedAt !== null || note.html === changedHtml) return;
+  const html = note.sprint ? restoreMissingSections(changedHtml) : changedHtml;
   const updated = { ...note, html, updatedAt: Date.now() };
   notes.set(updated.id, updated);
   saves.schedule(updated.id);
   renderList();
   byId("note-date").textContent = formatEditedDate(updated.updatedAt);
   renderNoteDetails(updated);
+}
+
+// Deleting across a locked heading (a big selection, a cut) can still remove it; put the
+// sections back rather than leave a sprint note that counts nothing.
+function restoreMissingSections(html) {
+  const editorElement = byId("editor");
+  const complete = state.settings.sections.every((section) => editorElement.querySelector(`h2[data-section="${section.id}"] + ul.checklist`));
+  if (complete) return html;
+  const repaired = ensureSprintSections(html, state.settings);
+  editor.load(repaired);
+  syncSectionHeadings();
+  return repaired;
 }
 
 function saveNow(id) {
@@ -303,7 +327,7 @@ function createNote() {
 }
 
 function createSprint() {
-  openCreated(newSprint(Date.now(), [...notes.values()], state.settings.statuses));
+  openCreated(newSprint(Date.now(), [...notes.values()], state.settings));
 }
 
 function openCreated(note) {
@@ -364,7 +388,7 @@ async function importNotes() {
   }
   await adoptImportedSettings(result.settings);
   const today = new Date();
-  const imported = result.notes.map((note) => migrateTargetNote({ ...note, html: sanitizeHtml(note.html) }, state.settings.statuses, today));
+  const imported = result.notes.map((note) => upgradeNote({ ...note, html: sanitizeHtml(note.html) }, state.settings, today));
   await store.saveNotes(imported);
   imported.forEach((note) => {
     saves.cancel(note.id);
@@ -375,10 +399,10 @@ async function importNotes() {
 }
 
 async function adoptImportedSettings(settings) {
-  if (!settings || sameSettings(settings, state.settings)) return;
+  if (!settings || sameSettings(normalizeSettings(settings), state.settings)) return;
   if (!window.confirm("Replace your status settings with the ones in this backup?")) return;
-  state.settings = settings;
-  await store.saveSettings(settings);
+  state.settings = normalizeSettings(settings);
+  await store.saveSettings(state.settings);
 }
 
 function reportImportError(error) {
@@ -391,7 +415,7 @@ function applyRemoteChanges({ updated, removedIds, settings, theme }) {
     state.ui.theme = theme;
     showTheme(theme);
   }
-  if (settings) state.settings = settings;
+  if (settings) state.settings = normalizeSettings(settings);
   const newer = remoteNotesToApply(updated, { local: notes, isPending: saves.isPending });
   const removed = removedIds.filter((id) => notes.has(id) && !saves.isPending(id));
   newer.forEach((note) => notes.set(note.id, note));
@@ -420,6 +444,7 @@ function isEditingCurrentNote() {
 function wireControls() {
   closeOnOutsideClick(byId("help"));
   closeOnOutsideClick(byId("sprint-settings"));
+  wireTicketDragging({ editorElement: byId("editor"), onMove: (item, destination) => editor.moveTicket(item, destination) });
   wireEditorActions();
   wireButtons();
   wireSidebar();

@@ -2,6 +2,11 @@ import { createElement } from "./dom.js";
 import { formatShortDate, statusFor } from "./sprint.js";
 
 const RING_RADIUS = 16;
+const SECTION_TICKET = "h2[data-section] + ul.checklist > li";
+const SECTION_LIST = "h2[data-section] + ul.checklist";
+const GRIP_OFFSET_PX = 22;
+const DROP_CLASSES = ["drop-before", "drop-after", "drop-into"];
+let draggedTicket = null;
 const GEAR_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>';
 
 export function renderSprintSummary(container, { stats, sprint, onSettings }) {
@@ -53,7 +58,68 @@ export function renderTicketChips(layer, options) {
   if (layer.contains(document.activeElement) && document.activeElement.tagName === "INPUT") return;
   const items = options.statuses === null ? [] : [...options.editorElement.querySelectorAll("ul.checklist > li")];
   const origin = layer.getBoundingClientRect();
-  layer.replaceChildren(...items.map((item) => chipRow(item, origin, options)));
+  const grips = options.statuses === null ? [] : [...options.editorElement.querySelectorAll(SECTION_TICKET)].map((item) => ticketGrip(item, origin, options));
+  layer.replaceChildren(...items.map((item) => chipRow(item, origin, options)), ...grips);
+}
+
+function ticketGrip(item, origin, { editable }) {
+  const grip = createElement("button", "ticket-grip", "⋮⋮");
+  const box = item.getBoundingClientRect();
+  grip.type = "button";
+  grip.title = "Drag to move this ticket";
+  grip.setAttribute("aria-label", "Move ticket (or Alt+Up / Alt+Down in the ticket)");
+  grip.disabled = !editable;
+  grip.draggable = editable;
+  grip.style.top = `${box.top - origin.top + parseFloat(getComputedStyle(item).paddingTop)}px`;
+  grip.style.left = `${box.left - origin.left - GRIP_OFFSET_PX}px`;
+  grip.addEventListener("dragstart", (event) => {
+    draggedTicket = item;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", item.textContent);
+    event.dataTransfer.setDragImage(item, 0, 0);
+  });
+  return grip;
+}
+
+export function wireTicketDragging({ editorElement, onMove }) {
+  editorElement.addEventListener("dragover", (event) => {
+    const drop = draggedTicket ? dropTarget(event) : null;
+    if (!drop) return;
+    event.preventDefault();
+    markDrop(editorElement, drop);
+  });
+  editorElement.addEventListener("drop", (event) => {
+    if (!draggedTicket) return;
+    event.preventDefault();
+    const drop = dropTarget(event);
+    clearDropMarks(editorElement);
+    if (drop) onMove(draggedTicket, drop.destination);
+  });
+  document.addEventListener("dragend", () => {
+    draggedTicket = null;
+    clearDropMarks(editorElement);
+  });
+}
+
+function dropTarget(event) {
+  const item = event.target.closest?.(SECTION_TICKET);
+  if (item && item !== draggedTicket && !draggedTicket.contains(item)) {
+    const box = item.getBoundingClientRect();
+    const after = event.clientY > box.top + box.height / 2;
+    return { mark: item, markClass: after ? "drop-after" : "drop-before", destination: { list: item.parentElement, before: after ? item.nextElementSibling : item } };
+  }
+  const list = event.target.closest?.(SECTION_LIST);
+  if (list && list.children.length === 0) return { mark: list, markClass: "drop-into", destination: { list, before: null } };
+  return null;
+}
+
+function markDrop(editorElement, drop) {
+  clearDropMarks(editorElement);
+  drop.mark.classList.add(drop.markClass);
+}
+
+function clearDropMarks(editorElement) {
+  editorElement.querySelectorAll(DROP_CLASSES.map((name) => `.${name}`).join(",")).forEach((element) => element.classList.remove(...DROP_CLASSES));
 }
 
 function chipRow(item, origin, options) {
