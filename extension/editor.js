@@ -1,6 +1,8 @@
 import { History } from "./history.js";
 import { matchHotkey } from "./hotkeys.js";
-import { itemCreatedBySplit, liftListOutOfParagraph, setBlockType } from "./lists.js";
+import {
+  checkboxForShortcut, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType,
+} from "./lists.js";
 import { EMPTY_NOTE_HTML } from "./model.js";
 import { sanitizeHtml } from "./sanitize.js";
 import {
@@ -156,6 +158,7 @@ export class NoteEditor {
   }
 
   #onSpace(event) {
+    if (this.#applyListShortcut(event)) return;
     const link = this.#linkifyBeforeCaret();
     if (!link) return;
     event.preventDefault();
@@ -163,6 +166,35 @@ export class NoteEditor {
     link.after(space);
     placeCaret(space, 1);
     this.#changed();
+  }
+
+  // Notes turns "- ", "* ", "1. " at the start of a body line into a list, and "[ ] " at the
+  // start of a list item into a checklist item. The space goes in first so Ctrl+Z gives the text back.
+  #applyListShortcut(event) {
+    const block = caretBlock(this.#element);
+    if (!block || !document.getSelection().isCollapsed) return false;
+    const prefix = block.textContent.slice(0, caretOffset(block));
+    const isItem = block.tagName === "LI";
+    const kind = !isItem && (block.tagName === "P" || block.tagName === "DIV") ? listKindForShortcut(prefix) : null;
+    const checkbox = isItem ? checkboxForShortcut(prefix) : null;
+    if (!kind && !checkbox) return false;
+    event.preventDefault();
+    document.execCommand("insertText", false, " ");
+    this.#checkpoint();
+    removeLeadingText(block, prefix.length + 1);
+    if (!block.textContent && !block.querySelector("br")) block.append(document.createElement("br"));
+    placeCaretAtStart(block);
+    if (kind) this.#toggleList(kind);
+    else this.#makeChecklistItem(block, checkbox.checked);
+    this.#changed();
+    return true;
+  }
+
+  #makeChecklistItem(item, checked) {
+    if (item.parentElement.tagName === "UL") applyListKind(item.parentElement, "checklist");
+    else this.#toggleList("checklist");
+    const current = caretElement(this.#element)?.closest(CHECKLIST_ITEM) ?? item;
+    current.setAttribute("data-checked", String(checked));
   }
 
   #onMouseDown(event) {
