@@ -65,9 +65,17 @@ test("a list nested in the styled item follows it", () => {
   assert.equal(convert(html, { tag: "li", text: "a" }, "p"), '<p>a</p><ul class="dashed"><li>x</li></ul>');
 });
 
-test("an item of a list nested by Chrome moves below the whole list", () => {
+test("an item of a list nested by Chrome keeps its place and splits the lists around it", () => {
   const html = "<ul><li>a</li><ul><li>b</li><li>c</li></ul></ul>";
-  assert.equal(convert(html, { tag: "li", text: "b" }, "h2"), "<ul><li>a</li><ul><li>c</li></ul></ul><h2>b</h2>");
+  assert.equal(convert(html, { tag: "li", text: "b" }, "h2"), "<ul><li>a</li></ul><h2>b</h2><ul><ul><li>c</li></ul></ul>");
+});
+
+test("an item nested inside another item keeps its place before the following items", () => {
+  const html = '<ol><li>a<ul class="dashed"><li>b</li><li>c</li></ul></li><li>d</li></ol>';
+  assert.equal(
+    convert(html, { tag: "li", text: "b" }, "h2"),
+    '<ol><li>a</li></ol><h2>b</h2><ol><ul class="dashed"><li>c</li></ul><li>d</li></ol>',
+  );
 });
 
 test("an empty item becomes an empty block the caret can sit in", () => {
