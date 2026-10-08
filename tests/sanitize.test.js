@@ -21,11 +21,11 @@ test("strips event handlers, inline styles and classes", () => {
 
 test("unwraps links that are not http, https or mailto", () => {
   const html = '<a href="javascript:alert(1)">x</a><a href=" JaVaScRiPt:alert(1)">y</a><a href="/relative">z</a><a href="mailto:a@b.test">m</a>';
-  assert.equal(sanitizeHtml(html), 'xyz<a href="mailto:a@b.test">m</a>');
+  assert.equal(sanitizeHtml(html), '<p>xyz<a href="mailto:a@b.test">m</a></p>');
 });
 
 test("maps equivalent tags onto the editor's own", () => {
-  assert.equal(sanitizeHtml("<strong>a</strong><em>b</em><del>c</del><h5>d</h5>"), "<b>a</b><i>b</i><s>c</s><h3>d</h3>");
+  assert.equal(sanitizeHtml("<strong>a</strong><em>b</em><del>c</del><h5>d</h5>"), "<p><b>a</b><i>b</i><s>c</s></p><h3>d</h3>");
 });
 
 test("turns web page wrappers into paragraphs and drops spans", () => {
@@ -46,4 +46,12 @@ test("keeps only known list classes and checked values", () => {
 
 test("text that looks like markup stays text", () => {
   assert.equal(sanitizeHtml("<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>"), "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>");
+});
+
+test("loose text and inline formatting at the top level are wrapped in paragraphs", () => {
+  assert.equal(sanitizeHtml("<div><p>a</p>b <b>c</b></div>d<h2>e</h2>"), "<p>a</p><p>b <b>c</b>d</p><h2>e</h2>");
+});
+
+test("whitespace between blocks does not create empty paragraphs", () => {
+  assert.equal(sanitizeHtml("<p>a</p>\n  <p>b</p>"), "<p>a</p><p>b</p>");
 });

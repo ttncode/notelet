@@ -81,3 +81,7 @@ test("a change from another tab is taken only when newer and not being edited he
   const accepted = remoteNotesToApply(incoming, { local, isPending: (id) => id === "c" });
   assert.deepEqual(accepted.map((n) => n.id), ["a", "new"]);
 });
+
+test("loose text after the blocks does not become the title", () => {
+  assert.equal(noteTitle("<h1>Real title</h1><p>body</p>stray"), "Real title");
+});

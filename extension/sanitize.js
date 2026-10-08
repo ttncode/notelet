@@ -18,12 +18,34 @@ const CELL_TAGS = new Set(["td", "th"]);
 const LIST_CLASSES = new Set(["checklist", "dashed"]);
 const CHECKED_VALUES = new Set(["true", "false"]);
 const SAFE_URL = /^(https?:|mailto:)/i;
+const ROOT_BLOCKS = new Set(["h1", "h2", "h3", "p", "pre", "ul", "ol"]);
 
 export function sanitizeHtml(html) {
   const source = parseHtml(html).body;
   const target = source.ownerDocument.createElement("div");
   appendClean(source, target);
+  wrapLooseInline(target);
   return target.innerHTML;
+}
+
+// Text left at the top level has no block to style or count as a line, so it gets one.
+function wrapLooseInline(container) {
+  let paragraph = null;
+  for (const node of [...container.childNodes]) {
+    if (node.nodeType === ELEMENT_NODE && ROOT_BLOCKS.has(node.tagName.toLowerCase())) {
+      paragraph = null;
+      continue;
+    }
+    if (!paragraph && node.nodeType === TEXT_NODE && node.textContent.trim() === "") {
+      node.remove();
+      continue;
+    }
+    if (!paragraph) {
+      paragraph = container.ownerDocument.createElement("p");
+      node.before(paragraph);
+    }
+    paragraph.append(node);
+  }
 }
 
 function appendClean(source, target) {

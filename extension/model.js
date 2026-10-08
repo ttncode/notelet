@@ -20,7 +20,7 @@ export function ownText(element) {
 
 export function noteLines(html) {
   const body = parseHtml(html).body;
-  return [body, ...body.querySelectorAll(TEXT_BLOCKS)]
+  return [...body.querySelectorAll(TEXT_BLOCKS), body]
     .flatMap((block) => ownText(block).split("\n"))
     .map((line) => line.trim())
     .filter(Boolean);
