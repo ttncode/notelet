@@ -107,7 +107,6 @@ body.viewing-deleted #new-note-list-button { visibility: hidden; }
 
 .text-button { padding: 0.3rem 0.5rem; border: 0; border-radius: 0.4rem; background: none; color: var(--accent-text); font-size: 0.9rem; }
 .icon-button { display: inline-grid; place-items: center; min-width: 2.25rem; height: 2.25rem; padding: 0 0.4rem; border: 0; border-radius: 0.5rem; background: none; color: var(--accent); }
-.icon-button[aria-pressed="true"] { background: var(--selected); }
 .text-button:hover, .icon-button:hover { background: var(--hover); }
 .icon { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .format-label { font-size: 1.05rem; font-weight: 600; }
@@ -119,6 +118,8 @@ body.viewing-deleted #new-note-list-button { visibility: hidden; }
 .editor-pane { grid-column: 3; display: flex; flex-direction: column; min-width: 0; }
 .toolbar { display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; }
 body:not(.popup-view) #open-full-page { display: none; }
+@media (min-width: 700px) { body:not(.sidebar-hidden) #new-note-button { display: none; } }
+body:not(.has-note) #note-menu-button { display: none; }
 body.viewing-deleted #format-button,
 body.viewing-deleted #checklist-button,
 body.viewing-deleted #pin-button,
