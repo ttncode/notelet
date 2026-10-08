@@ -232,6 +232,7 @@ export class NoteEditor {
     }
     const list = caretElement(this.#element)?.closest("ul,ol");
     if (!list) return;
+    unwrapStyledSpans(list);
     applyListKind(list, kind);
     const { focusNode, focusOffset } = document.getSelection();
     liftListOutOfParagraph(list);
@@ -367,6 +368,12 @@ function applyListKind(list, kind) {
     if (kind !== "checklist") item.removeAttribute("data-checked");
     else if (!item.hasAttribute("data-checked")) item.setAttribute("data-checked", "false");
   }
+}
+
+// Switching between list types, Chrome wraps the text in <span style="font-size: …"> copied
+// from the old list; the note has no inline styles, so the spans only get in the way.
+function unwrapStyledSpans(list) {
+  list.querySelectorAll("span[style]").forEach((span) => span.replaceWith(...span.childNodes));
 }
 
 function toggleChecked(item) {
