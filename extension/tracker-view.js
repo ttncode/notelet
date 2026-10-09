@@ -1,4 +1,5 @@
 import { createElement } from "./dom.js";
+import { applyShortcutTitles } from "./hotkeys.js";
 import { formatShortDate, parsePoints, sprintStats } from "./sprint.js";
 import {
   addGroup, findTask, groupPoints, insertTask, moveTask, newGroup, newTask, pointsByStatus, removeTask, stepTask, updateGroup, updateTask,
@@ -13,7 +14,7 @@ const CHEVRON_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><
 // The tracker is plain DOM rebuilt from note.sprint. Typing in a title or name updates the data
 // without a rebuild so the caret stays put; everything else rebuilds and puts focus back on the
 // control with the same data-key.
-export function createTrackerView({ container, onChange, onSettings }) {
+export function createTrackerView({ container, isMac, onChange, onSettings }) {
   let context = null;
   const change = (update, { focus = null, select = false } = {}) => {
     const sprint = update(context.sprint);
@@ -27,6 +28,7 @@ export function createTrackerView({ container, onChange, onSettings }) {
     container.hidden = next === null;
     if (next === null) return container.replaceChildren();
     container.replaceChildren(...buildTracker(next));
+    applyShortcutTitles(container, isMac);
     restoreFocus(container, { key: focus, select });
   };
   wireEvents(container, { get: () => context, change, onSettings });
@@ -34,6 +36,14 @@ export function createTrackerView({ container, onChange, onSettings }) {
     render,
     isEditing: () => container.contains(document.activeElement),
     focusTitle: () => restoreFocus(container, { key: "title", select: true }),
+    // Keyboard counterparts of buttons; each returns false when there is nothing to act on.
+    addGroup: () => clickIn(container, ".add-group"),
+    toggleFocusedGroup: () => clickIn(focusedIn(container, "[data-group-id]"), ".group-toggle"),
+    tickFocusedTask: () => {
+      const taskId = focusedIn(container, ".task-row")?.dataset.taskId;
+      if (!taskId || !context?.editable) return false;
+      return change((sprint) => updateTask(sprint, { taskId, change: { done: !findTask(sprint, taskId).task.done } }), { focus: activeKey(container) ?? "" });
+    },
   };
 }
 
@@ -44,7 +54,7 @@ function buildTracker({ sprint, statuses, today, editable }) {
     createElement("p", "tracker-sub", subtitle(sprint, stats)),
     chart({ sprint, statuses, stats }),
     ...sprint.groups.map((group) => groupSection({ group, statuses, editable })),
-    ...(editable ? [actionButton({ action: "add-group", label: "Add Group", className: "add-group" })] : []),
+    ...(editable ? [actionButton({ action: "add-group", label: "Add Group", className: "add-group", title: "Add group ({addGroup})" })] : []),
     createElement("h2", "tracker-notes-label", "Notes"),
   ];
 }
@@ -57,7 +67,7 @@ function header(sprint, editable) {
   const gear = createElement("button", "icon-button");
   gear.type = "button";
   gear.dataset.action = "settings";
-  gear.title = "Tracker settings";
+  gear.dataset.title = "Task tracking settings ({trackerSettings})";
   gear.setAttribute("aria-label", "Tracker settings");
   gear.innerHTML = GEAR_ICON;
   head.append(title, gear);
@@ -118,7 +128,7 @@ function groupSection({ group, statuses, editable }) {
   const card = createElement("div", "task-card");
   card.hidden = group.collapsed;
   card.append(...group.tasks.map((task) => taskRow({ task, statuses, editable })));
-  if (editable) card.append(actionButton({ action: "add-task", label: "Add Task", className: "add-task" }));
+  if (editable) card.append(actionButton({ action: "add-task", label: "Add Task", className: "add-task", title: "Add task (Enter in a task)" }));
   section.append(groupHeader(group, editable), card);
   return section;
 }
@@ -136,6 +146,7 @@ function groupHeader(group, editable) {
   toggle.dataset.key = `collapse:${group.id}`;
   toggle.setAttribute("aria-expanded", String(!group.collapsed));
   toggle.setAttribute("aria-label", group.collapsed ? "Show tasks" : "Hide tasks");
+  toggle.dataset.title = `${group.collapsed ? "Show tasks" : "Hide tasks"} ({toggleGroup})`;
   toggle.innerHTML = CHEVRON_ICON;
   head.append(name);
   if (group.counts) head.append(createElement("span", "counts-badge", "Counts"));
@@ -166,6 +177,7 @@ function tick(task, editable) {
   button.setAttribute("role", "checkbox");
   button.setAttribute("aria-checked", String(task.done));
   button.setAttribute("aria-label", "Done");
+  button.dataset.title = "Done ({toggleCheck} in the task)";
   return button;
 }
 
@@ -178,6 +190,7 @@ function pointsField(task, editable) {
   input.disabled = !editable;
   input.dataset.key = `points:${task.id}`;
   input.setAttribute("aria-label", "Points");
+  input.title = "Points (Tab from the task)";
   return input;
 }
 
@@ -194,6 +207,7 @@ function statusField({ task, statuses, editable }) {
   select.disabled = !editable;
   select.dataset.key = `status:${task.id}`;
   select.setAttribute("aria-label", "Status");
+  select.title = "Status (Tab from the points, then ↑ / ↓)";
   return select;
 }
 
@@ -205,13 +219,23 @@ function editableText({ tag, className, text, key, editable }) {
   return element;
 }
 
-function actionButton({ action, label, className }) {
+function actionButton({ action, label, className, title }) {
   const button = createElement("button", `tracker-add ${className}`);
   button.type = "button";
   button.dataset.action = action;
+  button.dataset.title = title;
   button.dataset.key = action;
   button.append(createElement("span", "plus", "+"), label);
   return button;
+}
+
+const focusedIn = (container, selector) => (container.contains(document.activeElement) ? document.activeElement.closest(selector) : null);
+
+function clickIn(root, selector) {
+  const button = root?.querySelector(selector);
+  if (!button) return false;
+  button.click();
+  return true;
 }
 
 const activeKey = (container) => (container.contains(document.activeElement) ? document.activeElement.dataset.key ?? null : null);

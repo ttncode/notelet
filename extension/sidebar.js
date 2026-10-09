@@ -25,6 +25,7 @@ function renderRow(note, { isCurrent, now, draggable }) {
   row.type = "button";
   row.draggable = draggable;
   row.dataset.noteId = note.id;
+  row.title = draggable ? "Enter opens it · Alt+↑ / Alt+↓ moves it" : "Enter opens it";
   if (isCurrent) row.setAttribute("aria-current", "true");
   const meta = createElement("span", "note-row-meta");
   meta.append(createElement("span", "note-row-date", formatRowDate(note.updatedAt, now)), createElement("span", "note-row-preview", note.sprint ? formatSprintRange(note.sprint) : notePreview(note.html)));

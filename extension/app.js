@@ -2,7 +2,7 @@ import { backupFileName, createBackup, parseBackup } from "./backup.js";
 import { closeOnOutsideClick, downloadFile, openHelp, pickTextFile, showToast } from "./dialogs.js";
 import { NoteEditor } from "./editor.js";
 import { formatEditedDate } from "./format.js";
-import { matchHotkey } from "./hotkeys.js";
+import { applyShortcutTitles, matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
 import { legacySections, newSprint, normalizeSettings, sameSettings, upgradeNote } from "./sprint.js";
@@ -55,7 +55,8 @@ async function main() {
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
   layout = setupLayout({ resizer: byId("resizer"), ui: state.ui, onUiChange: saveUiSoon });
-  tracker = createTrackerView({ container: byId("tracker"), onChange: onTrackerChange, onSettings: openSettings });
+  tracker = createTrackerView({ container: byId("tracker"), isMac: IS_MAC, onChange: onTrackerChange, onSettings: openSettings });
+  applyShortcutTitles(document, IS_MAC);
   wireControls();
   store.onChange(applyRemoteChanges);
   openInitialNote();
@@ -452,6 +453,7 @@ function wireButtons() {
   for (const [id, handler] of Object.entries(handlers)) byId(id).addEventListener("click", handler);
   wireListMenu();
   wireNoteMenu();
+  for (const menu of document.querySelectorAll(".format-menu[popover]")) menu.addEventListener("keydown", onMenuKeydown);
 }
 
 function wireNoteMenu() {
@@ -571,29 +573,60 @@ function clearDropMarks() {
   byId("note-list").querySelectorAll(".drop-before, .drop-after, .dragging").forEach((row) => row.classList.remove("drop-before", "drop-after", "dragging"));
 }
 
-function onAppHotkey(event) {
-  const action = matchHotkey(event, IS_MAC);
-  if (action === "search") {
-    event.preventDefault();
+// Each returns false when it does not apply here, so the key keeps its normal meaning.
+const APP_HOTKEYS = {
+  search: () => {
     layout.showList();
     byId("search").focus();
-  } else if (action === "help") {
-    event.preventDefault();
-    if (byId("help").open) byId("help").close();
-    else showHelp();
-  } else if (action === "focusList") {
-    event.preventDefault();
-    focusFirstNote();
-  } else if (action === "focusEditor") {
-    event.preventDefault();
-    focusEditor();
-  } else if (action === "newNote") {
-    event.preventDefault();
-    createNote();
-  } else if (action === "newSprint") {
-    event.preventDefault();
-    createSprint();
-  }
+  },
+  help: () => (byId("help").open ? byId("help").close() : showHelp()),
+  focusList: () => focusFirstNote(),
+  focusEditor: () => focusEditor(),
+  newNote: () => createNote(),
+  newSprint: () => createSprint(),
+  toggleSidebar: () => layout.toggleSidebar(),
+  listMenu: () => {
+    layout.showList();
+    openMenu(byId("list-menu"));
+  },
+  deletedView: () => toggleDeletedView(),
+  theme: () => cycleTheme(),
+  export: () => exportNotes(),
+  import: () => importNotes().catch(reportImportError),
+  formatMenu: () => state.mode === "notes" && notes.has(state.currentId) && openMenu(byId("format-menu")),
+  noteMenu: () => notes.has(state.currentId) && openMenu(byId("note-menu")),
+  pin: () => state.mode === "notes" && notes.has(state.currentId) && togglePin(),
+  deleteNote: () => notes.has(state.currentId) && deleteCurrent(),
+  recover: () => state.mode === "deleted" && notes.has(state.currentId) && recoverCurrent(),
+  openFullPage: () => IS_POPUP && openFullPage().catch((error) => console.error("Notelet: could not open the full page", error)),
+  trackerSettings: () => Boolean(notes.get(state.currentId)?.sprint) && openSettings(),
+  addGroup: () => tracker.addGroup(),
+  toggleGroup: () => tracker.toggleFocusedGroup(),
+  // Ticking inside the note text is the editor's; this covers a focused task.
+  toggleCheck: () => tracker.tickFocusedTask(),
+};
+
+function onAppHotkey(event) {
+  const run = APP_HOTKEYS[matchHotkey(event, IS_MAC)];
+  if (run && run() !== false) event.preventDefault();
+}
+
+// A menu opened from the keyboard takes focus so arrow keys and Enter work in it.
+function openMenu(menu) {
+  if (!menu.matches(":popover-open")) menu.showPopover();
+  firstMenuButton(menu)?.focus();
+}
+
+const menuButtons = (menu) => [...menu.querySelectorAll("button")].filter((button) => !button.hidden && button.offsetParent !== null);
+const firstMenuButton = (menu) => menuButtons(menu)[0];
+
+function onMenuKeydown(event) {
+  const step = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+  if (!step) return;
+  const buttons = menuButtons(event.currentTarget);
+  const index = buttons.indexOf(document.activeElement);
+  event.preventDefault();
+  buttons[(index + step + buttons.length) % buttons.length]?.focus();
 }
 
 const showHelp = () => openHelp({ dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version });
