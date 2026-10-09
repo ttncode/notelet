@@ -20,6 +20,7 @@ export const HOTKEYS = [
   { action: "search", label: "Search notes", alt: true, code: "Digit2" },
   { action: "focusEditor", label: "Go to note", alt: true, code: "Digit3" },
   { action: "search", label: "Search notes", mod: true, code: "KeyF" },
+  { action: "help", label: "Show or hide this list", mod: true, code: "Slash" },
   // Chrome reserves Ctrl+N (new window).
   { action: "newNote", label: "New note", alt: true, code: "KeyN" },
   { action: "newSprint", label: "New task tracking", alt: true, code: "KeyS" },
@@ -30,8 +31,10 @@ export function matchHotkey(event, isMac) {
   const mod = isMac ? event.metaKey : event.ctrlKey;
   const otherMod = isMac ? event.ctrlKey : event.metaKey;
   if (otherMod) return null;
+  // The numpad's / works as well as the main keyboard's.
+  const code = event.code === "NumpadDivide" ? "Slash" : event.code;
   const hotkey = HOTKEYS.find((candidate) => !candidate.native
-    && candidate.code === event.code
+    && candidate.code === code
     && Boolean(candidate.mod) === mod
     && Boolean(candidate.shift) === event.shiftKey
     && Boolean(candidate.alt) === event.altKey);
@@ -41,6 +44,6 @@ export function matchHotkey(event, isMac) {
 export function hotkeyLabel(hotkey, isMac) {
   const names = isMac ? { mod: "⌘", alt: "⌥", shift: "⇧" } : { mod: "Ctrl", alt: "Alt", shift: "Shift" };
   const parts = ["mod", "alt", "shift"].filter((modifier) => hotkey[modifier]).map((modifier) => names[modifier]);
-  parts.push(hotkey.code.replace(/^(Key|Digit)/, ""));
+  parts.push(hotkey.code === "Slash" ? "/" : hotkey.code.replace(/^(Key|Digit)/, ""));
   return parts.join(isMac ? "" : "+");
 }
