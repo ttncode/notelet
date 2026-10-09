@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HOTKEYS, hotkeyLabel, matchHotkey } from "../extension/hotkeys.js";
+import { HOTKEYS, fillShortcuts, hotkeyLabel, matchHotkey } from "../extension/hotkeys.js";
 
 const key = (code, modifiers = {}) => ({
   code, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, isComposing: false, ...modifiers,
@@ -67,4 +67,24 @@ test("Ctrl+/ shows the shortcut list, labelled with a slash", () => {
   const help = HOTKEYS.find((hotkey) => hotkey.action === "help");
   assert.equal(hotkeyLabel(help, false), "Ctrl+/");
   assert.equal(hotkeyLabel(help, true), "⌘/");
+});
+
+test("no two shortcuts share a key", () => {
+  const keys = HOTKEYS.map((hotkey) => [hotkey.mod, hotkey.shift, hotkey.alt, hotkey.code].join());
+  assert.equal(new Set(keys).size, keys.length);
+});
+
+test("every button's shortcut is matched", () => {
+  assert.equal(matchHotkey(key("Digit0", { altKey: true }), false), "toggleSidebar");
+  assert.equal(matchHotkey(key("KeyP", { altKey: true }), false), "pin");
+  assert.equal(matchHotkey(key("Backspace", { ctrlKey: true, shiftKey: true }), false), "deleteNote");
+  assert.equal(matchHotkey(key("Comma", { ctrlKey: true }), false), "trackerSettings");
+  assert.equal(matchHotkey(key("KeyK", { ctrlKey: true, shiftKey: true }), false), "monostyled");
+  assert.equal(matchHotkey(key("KeyX", { ctrlKey: true, shiftKey: true }), false), "strikethrough");
+});
+
+test("tooltips name each button's shortcut for the platform", () => {
+  assert.equal(fillShortcuts("Delete note ({deleteNote})", false), "Delete note (Ctrl+Shift+Backspace)");
+  assert.equal(fillShortcuts("Delete note ({deleteNote})", true), "Delete note (⌘⇧⌫)");
+  assert.equal(fillShortcuts("Search ({search}) · settings ({trackerSettings})", false), "Search (Ctrl+F) · settings (Ctrl+,)");
 });
