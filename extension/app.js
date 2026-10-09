@@ -447,7 +447,7 @@ function wireButtons() {
     "open-full-page": () => openFullPage().catch((error) => console.error("Notelet: could not open the full page", error)),
     "export-button": exportNotes,
     "import-button": () => importNotes().catch(reportImportError),
-    "help-button": () => openHelp({ dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version }),
+    "help-button": showHelp,
   };
   for (const [id, handler] of Object.entries(handlers)) byId(id).addEventListener("click", handler);
   wireListMenu();
@@ -577,6 +577,10 @@ function onAppHotkey(event) {
     event.preventDefault();
     layout.showList();
     byId("search").focus();
+  } else if (action === "help") {
+    event.preventDefault();
+    if (byId("help").open) byId("help").close();
+    else showHelp();
   } else if (action === "focusList") {
     event.preventDefault();
     focusFirstNote();
@@ -591,6 +595,8 @@ function onAppHotkey(event) {
     createSprint();
   }
 }
+
+const showHelp = () => openHelp({ dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version });
 
 function focusFirstNote() {
   layout.showList();

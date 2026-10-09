@@ -60,3 +60,11 @@ test("Alt+1, Alt+2 and Alt+3 go to the notes list, search and the note", () => {
   assert.equal(matchHotkey(key("Digit2", { altKey: true }), false), "search");
   assert.equal(matchHotkey(key("Digit3", { altKey: true }), false), "focusEditor");
 });
+
+test("Ctrl+/ shows the shortcut list, labelled with a slash", () => {
+  assert.equal(matchHotkey(key("Slash", { ctrlKey: true }), false), "help");
+  assert.equal(matchHotkey(key("NumpadDivide", { ctrlKey: true }), false), "help");
+  const help = HOTKEYS.find((hotkey) => hotkey.action === "help");
+  assert.equal(hotkeyLabel(help, false), "Ctrl+/");
+  assert.equal(hotkeyLabel(help, true), "⌘/");
+});
