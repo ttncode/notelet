@@ -40,3 +40,25 @@ test("pasting a Notelet copy back into a note drops the added ticks and dashes",
   assert.match(pasted, /<ul class="checklist"><li data-checked="true">Done item<\/li>/);
   assert.match(pasted, /<ul class="dashed"><li>Dash<\/li><\/ul>/);
 });
+
+const PASTED = "<p>Cập nhật UI:\n  - Thêm badge\n  - Luôn hiển thị</p>";
+
+test("line breaks typed as Enter, Shift+Enter or pasted text all come out as lines", () => {
+  assert.equal(clipboardText(root(PASTED)), "Cập nhật UI:\n  - Thêm badge\n  - Luôn hiển thị");
+  assert.equal(clipboardText(root("<p>a<br>b<br></p><p><br></p><p>c</p>")), "a\nb\n\nc");
+});
+
+test("blocks nested inside other blocks or list items are not dropped", () => {
+  assert.equal(clipboardText(root("<div>first<div>second</div></div>")), "first\nsecond");
+  assert.equal(clipboardText(root("<ul><li>item<p>more</p></li></ul>")), "• item\n    more");
+});
+
+// linkedom writes a non-breaking space as &#160;, Chrome as &nbsp;.
+const withNbsp = (html) => html.replace(/&#160;|&nbsp;/g, "\u00a0");
+
+test("HTML keeps line breaks, indents and tabs that other apps would collapse", () => {
+  const html = withNbsp(clipboardHtml(root(PASTED)));
+  assert.equal(html, "<p>Cập nhật UI:<br>  - Thêm badge<br>  - Luôn hiển thị</p>");
+  assert.equal(withNbsp(clipboardHtml(root("<p>a\tb  c</p>"))), "<p>a    b  c</p>");
+  assert.equal(clipboardHtml(root("<pre>keep\n  as is</pre>")), "<pre>keep\n  as is</pre>");
+});
