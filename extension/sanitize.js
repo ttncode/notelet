@@ -60,7 +60,8 @@ function appendClean(source, target) {
 
 function appendElement(element, target) {
   const tag = element.tagName.toLowerCase();
-  if (DROPPED.has(tag)) return;
+  // Ticks and dashes Notelet adds to its own copies (see clipboard.js).
+  if (DROPPED.has(tag) || element.hasAttribute("data-copy-marker")) return;
   const cleanTag = cleanTagFor(element, tag);
   if (cleanTag === null) {
     appendClean(element, target);

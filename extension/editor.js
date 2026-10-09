@@ -1,3 +1,4 @@
+import { clipboardHtml, clipboardText, selectedContent } from "./clipboard.js";
 import { History } from "./history.js";
 import { matchHotkey } from "./hotkeys.js";
 import {
@@ -104,6 +105,8 @@ export class NoteEditor {
     element.addEventListener("compositionend", () => this.#changed());
     element.addEventListener("mousedown", (event) => this.#onMouseDown(event));
     element.addEventListener("click", (event) => this.#onClick(event));
+    element.addEventListener("copy", (event) => this.#onCopy(event));
+    element.addEventListener("cut", (event) => this.#onCut(event));
     document.addEventListener("selectionchange", () => this.#rememberSelection());
   }
 
@@ -215,6 +218,23 @@ export class NoteEditor {
     this.#checkpoint();
     toggleChecked(item);
     this.#changed();
+  }
+
+  #onCopy(event) {
+    const selection = document.getSelection();
+    if (!selection.rangeCount || selection.isCollapsed || !this.#element.contains(selection.anchorNode)) return false;
+    const content = selectedContent(selection.getRangeAt(0));
+    event.clipboardData.setData("text/plain", clipboardText(content));
+    event.clipboardData.setData("text/html", clipboardHtml(content));
+    event.preventDefault();
+    return true;
+  }
+
+  // execCommand fires no beforeinput, so the cut needs its own undo step.
+  #onCut(event) {
+    if (!this.#onCopy(event) || !this.#element.isContentEditable) return;
+    this.#checkpoint();
+    document.execCommand("delete");
   }
 
   #onClick(event) {
