@@ -60,7 +60,7 @@ Sprint notes from earlier versions, including ones with a `Target: 18` line, are
 
 ## Keyboard shortcuts
 
-Choose **⋯ → Keyboard Shortcuts** above the notes list for the full list. Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome reserves a shortcut (Ctrl+N, Ctrl+Shift+T) Notelet uses Alt instead.
+Press `Ctrl+/` (or choose **⋯ → Keyboard Shortcuts**) for the full list. Every button has a shortcut, shown in its tooltip; the notes list, menus and dialogs also work with Tab, the arrow keys, Enter and Esc. Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome reserves a shortcut (Ctrl+N, Ctrl+Shift+T) Notelet uses Alt instead.
 
 ## Development
 
