@@ -1,13 +1,14 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
 import { closeOnOutsideClick, downloadFile, pickTextFile, showToast } from "./dialogs.js";
 import { mergeTrackers, newBoardNote } from "./board-merge.js";
-import { boardSearchText, findSprint, mapTasks, removeSprint, updateSprint } from "./board.js";
+import { boardSearchText, findSprint, findTask, mapTasks, removeSprint, updateSprint } from "./board.js";
 import { createBoardView } from "./board-view.js";
 import { NoteEditor } from "./editor.js";
 import { formatEditedDate } from "./format.js";
 import { applyShortcutTitles, matchHotkey, setCustomKeys } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
-import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isEmptyNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
+import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isEmptyNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, stepNote } from "./model.js";
+import { mergeNote } from "./merge.js";
 import { legacySections, normalizeSettings, sameSettings, upgradeNote } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
 import { sanitizeHtml } from "./sanitize.js";
@@ -25,6 +26,7 @@ const VIEWPORT_MARGIN_PX = 8;
 const IS_POPUP = new URLSearchParams(location.search).get("view") === "popup";
 const FULL_PAGE_URL = chrome.runtime.getURL("notes.html");
 const IS_MAC = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platform);
+const MERGE_CONFLICT_MESSAGE = "This note was also edited in another window. A paragraph you both changed now appears in both versions; for anything else, this window's change was kept.";
 const SAVE_FAILED_MESSAGE = "Couldn't save your last change. Your text is still here — keep this tab open and try again, or export a backup.";
 
 const THEME_ICONS = {
@@ -35,6 +37,11 @@ const THEME_ICONS = {
 const byId = (id) => document.getElementById(id);
 const store = createStore(chrome.storage.local);
 const notes = new Map();
+// What storage last held for each note, as told by its change events: the base for merging
+// another window's save with edits this window has not saved yet.
+const synced = new Map();
+// What this window last wrote for each note, to recognise its own change events.
+const written = new Map();
 const saves = createSaveScheduler({ delayMs: SAVE_DELAY_MS, maxWaitMs: SAVE_MAX_WAIT_MS, save: saveNow });
 const state = { currentId: null, mode: "notes", query: "", ui: null, settings: null };
 let editor;
@@ -51,7 +58,10 @@ main().catch((error) => {
 async function main() {
   document.body.classList.toggle("popup-view", IS_POPUP);
   const loaded = await store.load();
-  loaded.notes.forEach((note) => notes.set(note.id, note));
+  loaded.notes.forEach((note) => {
+    notes.set(note.id, note);
+    synced.set(note.id, note);
+  });
   state.ui = loaded.ui;
   state.settings = loaded.settings;
   setCustomKeys(state.settings.hotkeys);
@@ -189,7 +199,7 @@ function renderSidebarChrome() {
   byId("note-count").textContent = `${shownCount} ${shownCount === 1 ? "Note" : "Notes"}`;
 }
 
-function renderEditorPane() {
+function renderEditorPane({ whenIdle = false } = {}) {
   const note = notes.get(state.currentId);
   const inDeleted = state.mode === "deleted";
   const deleteLabel = inDeleted ? "Delete Permanently" : "Delete";
@@ -201,13 +211,13 @@ function renderEditorPane() {
   document.body.classList.toggle("has-note", Boolean(note));
   document.body.classList.toggle("viewing-deleted", inDeleted);
   editor.setReadOnly(inDeleted || !note);
-  renderNoteDetails(note);
+  renderNoteDetails(note, { whenIdle });
 }
 
-function renderNoteDetails(note) {
+function renderNoteDetails(note, { whenIdle = false } = {}) {
   const board = note?.board ?? null;
   document.body.classList.toggle("board-view", board !== null);
-  boardView.render(board ? { board, settings: state.settings, today: new Date(), editable: state.mode === "notes" } : null);
+  boardView.render(board ? { board, settings: state.settings, today: new Date(), editable: state.mode === "notes" } : null, { whenIdle });
   document.title = note ? `${noteTitleOf(note)} – Notelet` : "Notelet";
 }
 
@@ -267,10 +277,15 @@ function onEditorChange(changedHtml) {
 
 function saveNow(id) {
   const note = notes.get(id);
-  return note ? store.saveNotes([note]).catch(reportSaveError) : undefined;
+  return note ? persist([note]).catch(reportSaveError) : undefined;
 }
 
 const flushSaves = () => saves.flush();
+
+function persist(changed) {
+  changed.forEach((note) => written.set(note.id, JSON.stringify(note)));
+  return store.saveNotes(changed);
+}
 
 function reportSaveError(error) {
   console.error("Notelet: save failed", error);
@@ -291,7 +306,7 @@ function updateCurrent(change) {
   const updated = { ...note, ...change(note), updatedAt: Date.now() };
   saves.cancel(updated.id);
   notes.set(updated.id, updated);
-  store.saveNotes([updated]).catch(reportSaveError);
+  persist([updated]).catch(reportSaveError);
   return updated;
 }
 
@@ -315,7 +330,7 @@ function openCreated(note) {
   state.mode = "notes";
   clearSearch();
   notes.set(note.id, note);
-  store.saveNotes([note]).catch(reportSaveError);
+  persist([note]).catch(reportSaveError);
   selectNote(note.id);
   if (!note.board) editor.focusStart();
 }
@@ -359,7 +374,7 @@ function absorbTrackers() {
     saves.cancel(note.id);
     notes.set(note.id, note);
   });
-  if (changed.length > 0) store.saveNotes(changed).catch(reportSaveError);
+  if (changed.length > 0) persist(changed).catch(reportSaveError);
   return changed.map((note) => note.id);
 }
 
@@ -387,7 +402,7 @@ async function importNotes() {
   const today = new Date();
   const upgradeSettings = { statuses: state.settings.statuses, sections: legacySections(result.settings) };
   const imported = result.notes.map((note) => upgradeNote(sanitizeNote(note), upgradeSettings, today));
-  await store.saveNotes(imported);
+  await persist(imported);
   imported.forEach((note) => {
     saves.cancel(note.id);
     notes.set(note.id, note);
@@ -419,14 +434,34 @@ function applyRemoteChanges({ updated, removedIds, settings, theme }) {
     showTheme(theme);
   }
   if (settings) adoptSettings(normalizeSettings(settings));
-  const newer = remoteNotesToApply(updated, { local: notes, isPending: saves.isPending });
+  const accepted = updated.map(acceptRemote).filter(Boolean);
   const removed = removedIds.filter((id) => notes.has(id) && !saves.isPending(id));
-  newer.forEach((note) => notes.set(note.id, note));
   removed.forEach((id) => notes.delete(id));
-  if (newer.length === 0 && removed.length === 0 && !settings) return;
-  refreshAfterOutsideChange(newer.map((note) => note.id));
+  if (accepted.some((change) => change.conflict)) showToast(MERGE_CONFLICT_MESSAGE);
+  if (accepted.length === 0 && removed.length === 0 && !settings) return;
+  refreshAfterOutsideChange(accepted.map((change) => change.id));
 }
 
+// Another window's save is taken as it is unless this window has edits of its own since the
+// last save it saw; then the two are merged and the result saved, so both windows end up equal.
+function acceptRemote(remote) {
+  const base = synced.get(remote.id);
+  synced.set(remote.id, remote);
+  if (written.get(remote.id) === JSON.stringify(remote)) return null;
+  const local = notes.get(remote.id);
+  if (!local || !base || sameNote(local, base)) {
+    notes.set(remote.id, remote);
+    return { id: remote.id, conflict: false };
+  }
+  const { note, conflict } = mergeNote(base, local, remote);
+  notes.set(note.id, note);
+  if (!sameNote(note, remote)) saves.schedule(note.id);
+  return { id: note.id, conflict };
+}
+
+const sameNote = (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b);
+
+// The note on screen takes in the change without losing the caret or the field being edited.
 function refreshAfterOutsideChange(changedIds) {
   const current = notes.get(state.currentId);
   const stillInView = current && (current.deletedAt !== null) === (state.mode === "deleted");
@@ -434,14 +469,17 @@ function refreshAfterOutsideChange(changedIds) {
     selectFirstVisible();
     return;
   }
-  if (changedIds.includes(current.id) && !isEditingCurrentNote()) loadEditor(current);
-  renderAll();
+  if (changedIds.includes(current.id)) showOutsideChange(current);
+  renderList();
+  renderEditorPane({ whenIdle: true });
 }
 
-// A focused board field counts as editing, so a save from another tab waits instead of
-// replacing the task being typed into.
-function isEditingCurrentNote() {
-  return editor.isFocused() || boardView.isEditing();
+function showOutsideChange(note) {
+  if (editor.isFocused()) editor.showMerged(note.html);
+  else loadEditor(note);
+  const taskId = boardView.openTaskId();
+  const task = taskId && note.board ? findTask(note.board, taskId)?.task : null;
+  if (task) taskEditor.showMerged(task.note || EMPTY_BODY_HTML);
 }
 
 function wireControls() {
@@ -575,7 +613,7 @@ function applyPlacement(id, placement) {
   const updated = { ...notes.get(id), ...placement, updatedAt: Date.now() };
   saves.cancel(id);
   notes.set(id, updated);
-  store.saveNotes([updated]).catch(reportSaveError);
+  persist([updated]).catch(reportSaveError);
   renderList();
 }
 

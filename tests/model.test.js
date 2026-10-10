@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   EMPTY_NOTE_HTML, isEmptyNote, isExpired, newNote, noteLines, notePreview, noteText, noteTitle, orderedGroups, placeNote,
-  remoteNotesToApply, stepNote,
+  stepNote,
 } from "../extension/model.js";
 
 const DAY_MS = 86_400_000;
@@ -79,17 +79,6 @@ test("deleted notes expire after 30 days", () => {
   assert.equal(isExpired(note(), NOW), false);
 });
 
-test("a change from another tab is taken only when newer and not being edited here", () => {
-  const local = new Map([["a", note({ id: "a", updatedAt: 10 })], ["b", note({ id: "b", updatedAt: 10 })], ["c", note({ id: "c", updatedAt: 10 })]]);
-  const incoming = [
-    note({ id: "a", updatedAt: 20 }),
-    note({ id: "b", updatedAt: 5 }),
-    note({ id: "c", updatedAt: 20 }),
-    note({ id: "new", updatedAt: 1 }),
-  ];
-  const accepted = remoteNotesToApply(incoming, { local, isPending: (id) => id === "c" });
-  assert.deepEqual(accepted.map((n) => n.id), ["a", "new"]);
-});
 
 test("loose text after the blocks does not become the title", () => {
   assert.equal(noteTitle("<h1>Real title</h1><p>body</p>stray"), "Real title");

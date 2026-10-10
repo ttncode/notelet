@@ -50,6 +50,24 @@ export class NoteEditor {
     this.#savedRange = null;
   }
 
+  // Text merged from another window replaces what is shown; the caret stays in the paragraph it
+  // was in, at the same place, and Undo goes back to the text before the merge.
+  showMerged(html) {
+    if (this.#element.innerHTML === html) return;
+    const hadFocus = this.isFocused();
+    const block = topBlockAtCaret(this.#element);
+    const caret = block ? { html: block.outerHTML, index: [...this.#element.children].indexOf(block), offset: caretOffset(block) } : null;
+    this.#checkpoint();
+    this.#element.innerHTML = html;
+    this.#savedRange = null;
+    if (!hadFocus || !caret) return;
+    const blocks = [...this.#element.children];
+    const distance = (candidate) => Math.abs(blocks.indexOf(candidate) - caret.index);
+    const nearest = (best, candidate) => (best === null || distance(candidate) < distance(best) ? candidate : best);
+    const target = blocks.filter((candidate) => candidate.outerHTML === caret.html).reduce(nearest, null) ?? blocks[Math.min(caret.index, blocks.length - 1)];
+    setCaretOffset(target ?? this.#element, caret.offset);
+  }
+
   setReadOnly(readOnly) {
     this.#element.contentEditable = String(!readOnly);
   }
@@ -410,4 +428,10 @@ function unwrapStyledSpans(list) {
 
 function toggleChecked(item) {
   item.setAttribute("data-checked", item.getAttribute("data-checked") === "true" ? "false" : "true");
+}
+
+function topBlockAtCaret(root) {
+  let node = caretElement(root);
+  while (node && node.parentElement !== root) node = node.parentElement;
+  return node && node !== root ? node : null;
 }
