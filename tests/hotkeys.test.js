@@ -88,3 +88,10 @@ test("tooltips name each button's shortcut for the platform", () => {
   assert.equal(fillShortcuts("Delete note ({deleteNote})", true), "Delete note (⌘⇧⌫)");
   assert.equal(fillShortcuts("Search ({search}) · settings ({trackerSettings})", false), "Search (Ctrl+F) · settings (Ctrl+,)");
 });
+
+test("every shortcut has a group and each group is listed in one run, so help shows it once", () => {
+  const groups = HOTKEYS.map((hotkey) => hotkey.group);
+  assert.ok(groups.every(Boolean));
+  const runs = groups.filter((group, index) => group !== groups[index - 1]);
+  assert.equal(runs.length, new Set(groups).size);
+});

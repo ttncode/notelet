@@ -38,12 +38,23 @@ export function pickTextFile(accept) {
 }
 
 export function openHelp({ dialog, isMac, version }) {
-  const rows = HOTKEYS.map((hotkey) => {
-    const row = document.createElement("tr");
-    row.append(createElement("td", "", hotkey.label), createElement("td", "kbd", hotkeyLabel(hotkey, isMac)));
-    return row;
+  const sections = new Map();
+  for (const hotkey of HOTKEYS) sections.set(hotkey.group, [...(sections.get(hotkey.group) ?? []), hotkey]);
+  const parts = [...sections].flatMap(([group, hotkeys]) => {
+    const rows = hotkeys.map((hotkey) => {
+      const row = document.createElement("tr");
+      row.append(createElement("td", "", hotkey.label), createElement("td", "kbd", hotkeyLabel(hotkey, isMac)));
+      return row;
+    });
+    const body = createElement("tbody", "");
+    const table = createElement("table", "");
+    const card = createElement("div", "form-card");
+    body.append(...rows);
+    table.append(body);
+    card.append(table);
+    return [createElement("h3", "form-head", group), card];
   });
-  dialog.querySelector("tbody").replaceChildren(...rows);
+  dialog.querySelector(".help-groups").replaceChildren(...parts);
   dialog.querySelector(".help-version").textContent = `Notelet ${version}`;
   dialog.showModal();
 }
