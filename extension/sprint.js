@@ -1,4 +1,5 @@
 import { formatDayMonth } from "./format.js";
+import { normalizeCustomKeys } from "./hotkeys.js";
 import { noteLines, noteTitle, ownText, parseHtml } from "./model.js";
 import { convertTicket } from "./ticket-text.js";
 import { defaultSections, extractTracker, isValidSections } from "./sections.js";
@@ -27,10 +28,11 @@ export const DEFAULT_STATUSES = Object.freeze([
   Object.freeze({ id: "s5", label: "Done", color: "#30d158" }),
 ]);
 
-// sprintCounts and monthCounts are the status ids that count as done for a sprint and for a month.
+// sprintCounts and monthCounts are the status ids that count as done for a sprint and for a month;
+// hotkeys holds the shortcuts the user changed.
 export function defaultSettings() {
   const statuses = DEFAULT_STATUSES.map((status) => ({ ...status }));
-  return { statuses, sprintCounts: defaultCounts(statuses), monthCounts: defaultCounts(statuses) };
+  return { statuses, sprintCounts: defaultCounts(statuses), monthCounts: defaultCounts(statuses), hotkeys: {} };
 }
 
 // Done, or the last status when Done has been removed.
@@ -42,7 +44,7 @@ export function normalizeSettings(settings) {
     const known = Array.isArray(ids) ? ids.filter((id) => statuses.some((status) => status.id === id)) : [];
     return known.length > 0 ? known : defaultCounts(statuses);
   };
-  return { statuses, sprintCounts: counts(settings.sprintCounts), monthCounts: counts(settings.monthCounts) };
+  return { statuses, sprintCounts: counts(settings.sprintCounts), monthCounts: counts(settings.monthCounts), hotkeys: normalizeCustomKeys(settings.hotkeys) };
 }
 
 // Section labels and count flags were settings before each tracker had its own groups; they
@@ -172,11 +174,14 @@ function toIso(year, month, day) {
 const defaultDates = (today) => sprintDatesFrom(isoDate(today));
 
 
+const sortedEntries = (object) => Object.entries(object ?? {}).sort(([a], [b]) => a.localeCompare(b));
+
 export function sameSettings(first, second) {
   const sameStatus = (a, b) => a.id === b.id && a.label === b.label && a.color === b.color;
   const sameIds = (a, b) => a.length === b.length && a.every((id, index) => id === b[index]);
   return first.statuses.length === second.statuses.length && first.statuses.every((status, index) => sameStatus(status, second.statuses[index]))
-    && sameIds(first.sprintCounts, second.sprintCounts) && sameIds(first.monthCounts, second.monthCounts);
+    && sameIds(first.sprintCounts, second.sprintCounts) && sameIds(first.monthCounts, second.monthCounts)
+    && JSON.stringify(sortedEntries(first.hotkeys)) === JSON.stringify(sortedEntries(second.hotkeys));
 }
 
 // settings: { statuses, sections } where sections are the legacy section labels and count flags.

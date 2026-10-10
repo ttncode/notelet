@@ -1,5 +1,3 @@
-import { createElement } from "./dom.js";
-import { HOTKEYS, hotkeyLabel } from "./hotkeys.js";
 
 const TOAST_DURATION_MS = 5000;
 const URL_REVOKE_DELAY_MS = 1000;
@@ -35,28 +33,6 @@ export function pickTextFile(accept) {
     input.addEventListener("cancel", () => resolve(null));
     input.click();
   });
-}
-
-export function openHelp({ dialog, isMac, version }) {
-  const sections = new Map();
-  for (const hotkey of HOTKEYS) sections.set(hotkey.group, [...(sections.get(hotkey.group) ?? []), hotkey]);
-  const parts = [...sections].flatMap(([group, hotkeys]) => {
-    const rows = hotkeys.map((hotkey) => {
-      const row = document.createElement("tr");
-      row.append(createElement("td", "", hotkey.label), createElement("td", "kbd", hotkeyLabel(hotkey, isMac)));
-      return row;
-    });
-    const body = createElement("tbody", "");
-    const table = createElement("table", "");
-    const card = createElement("div", "form-card");
-    body.append(...rows);
-    table.append(body);
-    card.append(table);
-    return [createElement("h3", "form-head", group), card];
-  });
-  dialog.querySelector(".help-groups").replaceChildren(...parts);
-  dialog.querySelector(".help-version").textContent = `Notelet ${version}`;
-  dialog.showModal();
 }
 
 export function isPointOutside(rect, { x, y }) {

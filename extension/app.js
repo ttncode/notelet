@@ -1,17 +1,18 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
-import { closeOnOutsideClick, downloadFile, openHelp, pickTextFile, showToast } from "./dialogs.js";
+import { closeOnOutsideClick, downloadFile, pickTextFile, showToast } from "./dialogs.js";
 import { mergeTrackers, newBoardNote } from "./board-merge.js";
 import { boardSearchText, findSprint, mapTasks, removeSprint, updateSprint } from "./board.js";
 import { createBoardView } from "./board-view.js";
 import { NoteEditor } from "./editor.js";
 import { formatEditedDate } from "./format.js";
-import { applyShortcutTitles, matchHotkey } from "./hotkeys.js";
+import { applyShortcutTitles, matchHotkey, setCustomKeys } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isEmptyNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
 import { legacySections, normalizeSettings, sameSettings, upgradeNote } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
 import { sanitizeHtml } from "./sanitize.js";
 import { createSaveScheduler } from "./scheduler.js";
+import { openShortcuts } from "./shortcut-editor.js";
 import { renderNoteList } from "./sidebar.js";
 import { createStore } from "./store.js";
 import { applyTheme, nextTheme, themeLabel } from "./theme.js";
@@ -53,6 +54,7 @@ async function main() {
   loaded.notes.forEach((note) => notes.set(note.id, note));
   state.ui = loaded.ui;
   state.settings = loaded.settings;
+  setCustomKeys(state.settings.hotkeys);
   showTheme(state.ui.theme);
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
@@ -241,7 +243,7 @@ function openSettings() {
 }
 
 function saveSprintSettings({ sprintId, sprintChange, settings }) {
-  state.settings = settings;
+  state.settings = { ...state.settings, ...settings };
   store.saveSettings(state.settings).catch(reportSaveError);
   if (sprintId) updateCurrent((note) => ({ board: updateSprint(note.board, { sprintId, change: sprintChange }) }));
   renderAll();
@@ -401,8 +403,8 @@ function sanitizeNote(note) {
 
 async function adoptImportedSettings(settings) {
   if (!settings || sameSettings(normalizeSettings(settings), state.settings)) return;
-  if (!window.confirm("Replace your status settings with the ones in this backup?")) return;
-  state.settings = normalizeSettings(settings);
+  if (!window.confirm("Replace your status and shortcut settings with the ones in this backup?")) return;
+  adoptSettings(normalizeSettings(settings));
   await store.saveSettings(state.settings);
 }
 
@@ -416,7 +418,7 @@ function applyRemoteChanges({ updated, removedIds, settings, theme }) {
     state.ui.theme = theme;
     showTheme(theme);
   }
-  if (settings) state.settings = normalizeSettings(settings);
+  if (settings) adoptSettings(normalizeSettings(settings));
   const newer = remoteNotesToApply(updated, { local: notes, isPending: saves.isPending });
   const removed = removedIds.filter((id) => notes.has(id) && !saves.isPending(id));
   newer.forEach((note) => notes.set(note.id, note));
@@ -676,7 +678,21 @@ function onMenuKeydown(event) {
   buttons[(index + step + buttons.length) % buttons.length]?.focus();
 }
 
-const showHelp = () => openHelp({ dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version });
+const showHelp = () => openShortcuts({
+  dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version, keys: state.settings.hotkeys, onChange: saveShortcuts,
+});
+
+function saveShortcuts(hotkeys) {
+  adoptSettings({ ...state.settings, hotkeys });
+  store.saveSettings(state.settings).catch(reportSaveError);
+}
+
+// Changed shortcuts take effect at once, tooltips included.
+function adoptSettings(settings) {
+  state.settings = settings;
+  setCustomKeys(settings.hotkeys);
+  applyShortcutTitles(document, IS_MAC);
+}
 
 function focusNoteList() {
   layout.showList();
