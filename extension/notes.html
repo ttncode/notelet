@@ -142,8 +142,12 @@
       <h2 id="help-title" tabindex="-1" autofocus>Keyboard Shortcuts</h2>
       <button class="text-button sheet-confirm" type="submit" data-title="Done (Esc or {help})">Done</button>
     </form>
+    <p class="form-foot help-intro">Click a key, then press the new one. Esc cancels; Backspace removes it.</p>
     <div class="help-groups"></div>
-    <p class="form-foot">Esc closes this list. To open Notelet from anywhere, set a shortcut at <code>chrome://extensions/shortcuts</code>.</p>
+    <div class="form-card form-actions help-reset">
+      <button class="form-row form-button menu-danger" type="button" id="reset-shortcuts">Reset All to Default</button>
+    </div>
+    <p class="form-foot">To open Notelet from anywhere, set a shortcut at <code>chrome://extensions/shortcuts</code>.</p>
     <p class="form-foot help-version"></p>
   </dialog>
 

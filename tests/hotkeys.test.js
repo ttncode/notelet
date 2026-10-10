@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HOTKEYS, fillShortcuts, hotkeyLabel, matchHotkey } from "../extension/hotkeys.js";
+import { HOTKEYS, fillShortcuts, hotkeyLabel, matchHotkey, normalizeCustomKeys, reservedReason, setCustomKeys } from "../extension/hotkeys.js";
 
 const key = (code, modifiers = {}) => ({
   code, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, isComposing: false, ...modifiers,
@@ -94,4 +94,40 @@ test("every shortcut has a group and each group is listed in one run, so help sh
   assert.ok(groups.every(Boolean));
   const runs = groups.filter((group, index) => group !== groups[index - 1]);
   assert.equal(runs.length, new Set(groups).size);
+});
+
+test("a changed shortcut matches its new key, and a removed one matches nothing", () => {
+  setCustomKeys({ pin: { mod: true, alt: false, shift: true, code: "KeyP" }, newNote: null });
+  try {
+    assert.equal(matchHotkey(key("KeyP", { ctrlKey: true, shiftKey: true }), false), "pin");
+    assert.equal(matchHotkey(key("KeyP", { altKey: true }), false), null);
+    assert.equal(matchHotkey(key("KeyN", { altKey: true }), false), null);
+    assert.equal(fillShortcuts("Pin ({pin}) · New ({newNote})", false), "Pin (Ctrl+Shift+P) · New (no key)");
+  } finally {
+    setCustomKeys({});
+  }
+  assert.equal(matchHotkey(key("KeyP", { altKey: true }), false), "pin");
+});
+
+test("keys the browser or Windows keep, and keys without Ctrl or Alt, are refused with a reason", () => {
+  const combo = (code, modifiers) => ({ mod: false, alt: false, shift: false, code, ...modifiers });
+  assert.match(reservedReason(combo("KeyT", { mod: true }), false), /Chrome keeps Ctrl\+T/);
+  assert.match(reservedReason(combo("KeyN", { mod: true, shift: true }), false), /Chrome keeps/);
+  assert.match(reservedReason(combo("KeyK", { alt: true, shift: true }), false), /keyboard language/);
+  assert.match(reservedReason(combo("KeyF", { alt: true }), false), /Chrome or Windows/);
+  assert.match(reservedReason(combo("KeyK", {}), false), /Ctrl or Alt/);
+  assert.equal(reservedReason(combo("KeyK", { mod: true, alt: true }), false), null);
+});
+
+test("stored shortcut changes keep only well-formed keys for shortcuts that can change", () => {
+  const stored = {
+    pin: { mod: true, alt: false, shift: false, code: "KeyJ" },
+    newNote: null,
+    bold: { mod: true, alt: false, shift: false, code: "KeyJ" },
+    gone: null,
+    search: { mod: "yes", alt: false, shift: false, code: "KeyJ" },
+  };
+  assert.deepEqual(Object.keys(normalizeCustomKeys(stored)), ["pin", "newNote"]);
+  assert.deepEqual(normalizeCustomKeys("nope"), {});
+  assert.deepEqual(new Set(HOTKEYS.map((hotkey) => hotkey.id)).size, HOTKEYS.length);
 });
