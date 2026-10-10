@@ -20,7 +20,7 @@ const NOTE_ICON = '<svg class="icon task-note-mark" viewBox="0 0 24 24" aria-lab
 // data-key. The screen is per tab and starts on the current sprint. noteElement is the task
 // note's editor; it is moved into the task screen rather than rebuilt, so it keeps its undo
 // history and caret, and onOpenTask loads it when a task opens.
-export function createBoardView({ container, noteElement, isMac, onChange, onSettings, onOpenTask }) {
+export function createBoardView({ container, noteElement, isMac, navigation, onChange, onSettings, onOpenTask }) {
   let context = null;
   let view = { screen: "list", listId: null, taskId: null, adding: false };
   let stale = false;
@@ -53,27 +53,24 @@ export function createBoardView({ container, noteElement, isMac, onChange, onSet
     render(context, { focus });
     container.closest(".editor-scroll")?.scrollTo({ top: 0 });
   };
-  const back = () => {
-    if (view.screen === "list") return false;
-    go({ screen: "list", taskId: null }, view.taskId ? `open:${view.taskId}` : "");
-    return true;
-  };
-  const handlers = { get: () => context, view: () => view, change, go, back, onSettings };
+  // Going deeper is a step back and forward can retrace; going back retraces one.
+  const forward = (next, focus) => navigation.forward(() => go(next, focus));
+  const back = () => navigation.back(() => go({ screen: "list", taskId: null }, view.taskId ? `open:${view.taskId}` : ""));
+  const handlers = { get: () => context, view: () => view, change, go, forward, back, replaceStep: () => navigation.replace(), onSettings };
   wireEvents(container, handlers);
   container.addEventListener("focusout", (event) => {
     if (stale && !container.contains(event.relatedTarget)) render(context, { focus: null });
   });
   return {
     render,
-    back,
     isEditing: () => container.contains(document.activeElement),
-    screen: () => view.screen,
+    viewState: () => ({ screen: view.screen, listId: view.listId, taskId: view.taskId }),
+    // Coming back from a task puts focus on that task's row, as the back button does.
+    showViewState: (state) => go(state ?? { screen: "list", listId: null, taskId: null }, view.screen === "task" ? `open:${view.taskId}` : ""),
     viewedSprintId: () => (view.screen === "list" && view.listId !== BACKLOG_ID ? view.listId : null),
     openTaskId: () => (view.screen === "task" ? view.taskId : null),
     // A note edit saves without a rebuild, which would move the caret.
     setTaskNote: (taskId, note) => change((board) => updateTask(board, { taskId, change: { note } })),
-    showAllSprints: () => go({ screen: "all", taskId: null }),
-    showSprint: (sprintId) => go({ screen: "list", listId: sprintId, taskId: null }),
   };
 }
 
@@ -433,33 +430,33 @@ function wireEvents(container, handlers) {
 function onClick(event, handlers) {
   const target = event.target.closest("[data-action]");
   if (!target) return;
-  const { get, view, change, go, back, onSettings } = handlers;
+  const { get, view, change, go, forward, back, onSettings } = handlers;
   const { board, settings, today, editable } = get();
   const taskId = target.closest("[data-task-id]")?.dataset.taskId;
   const actions = {
     settings: () => onSettings(view().listId),
     back,
-    "open-task": () => go({ screen: "task", taskId }, "detail-title"),
-    "open-list": () => go({ screen: "list", listId: target.dataset.listId, taskId: null }),
-    "all-sprints": () => go({ screen: "all", taskId: null }),
+    "open-task": () => forward({ screen: "task", taskId }, "detail-title"),
+    "open-list": () => forward({ screen: "list", listId: target.dataset.listId, taskId: null }),
+    "all-sprints": () => forward({ screen: "all", taskId: null }),
     "new-sprint": () => {
       if (!editable) return;
       const sprint = newSprint(board, today);
       change((current) => addSprint(current, sprint));
-      go({ screen: "list", listId: sprint.id, taskId: null });
+      forward({ screen: "list", listId: sprint.id, taskId: null });
     },
     "add-task": () => editable && go({ adding: true }, "new-task"),
     "move-open": () => editable && change((current) => moveOpenTasks(current, { sprintId: view().listId, listId: target.dataset.listId, counts: settings.sprintCounts }), { focus: "" }),
-    "delete-task": () => editable && deleteTask({ board, taskId: view().taskId, change, go }),
+    "delete-task": () => editable && deleteTask({ board, taskId: view().taskId, change, back }),
   };
   actions[target.dataset.action]?.();
 }
 
-function deleteTask({ board, taskId, change, go }) {
+function deleteTask({ board, taskId, change, back }) {
   const { task } = findTask(board, taskId);
   if ((task.title || task.note) && !window.confirm(`Delete "${task.title || "this task"}"? This can't be undone.`)) return;
   change((current) => removeTask(current, taskId));
-  go({ screen: "list", taskId: null });
+  back();
 }
 
 function onInput(event, { view, change }) {
@@ -468,7 +465,7 @@ function onInput(event, { view, change }) {
   change((board) => updateTask(board, { taskId: view().taskId, change: { title } }));
 }
 
-function onFieldChange(event, { get, view, change, go }) {
+function onFieldChange(event, { get, view, change, go, replaceStep }) {
   const [kind, id] = (event.target.dataset.key ?? "").split(":");
   const taskId = id ?? view().taskId;
   const value = event.target.value;
@@ -479,6 +476,7 @@ function onFieldChange(event, { get, view, change, go }) {
   else if (kind === "detail-list") {
     change((board) => moveTask(board, { taskId, listId: value }));
     go({ listId: value }, keep);
+    replaceStep();
   }
 }
 
