@@ -1,10 +1,11 @@
+import { isValidBoard, pickBoard } from "./board.js";
 import { isValidSections } from "./sections.js";
 import { isValidSprint, isValidStatus } from "./sprint.js";
 import { pickGroups } from "./tracker.js";
 
 export const BACKUP_APP = "notelet";
-export const BACKUP_VERSION = 3;
-const SUPPORTED_VERSIONS = new Set([1, 2, 3]);
+export const BACKUP_VERSION = 4;
+const SUPPORTED_VERSIONS = new Set([1, 2, 3, 4]);
 
 export function createBackup(notes, settings, now) {
   const backup = { app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: now.toISOString(), settings, notes: notes.map(pickNoteFields) };
@@ -42,12 +43,19 @@ function parseJson(text) {
 
 function isValidSettings(settings) {
   return Array.isArray(settings?.statuses) && settings.statuses.length > 0 && settings.statuses.every(isValidStatus)
-    && (settings.sections === undefined || isValidSections(settings.sections));
+    && (settings.sections === undefined || isValidSections(settings.sections))
+    && isValidCounts(settings.sprintCounts) && isValidCounts(settings.monthCounts);
 }
 
-function pickSettings({ statuses, sections }) {
-  const picked = { statuses: statuses.map(pickStatusFields) };
-  return sections === undefined ? picked : { ...picked, sections: sections.map(({ id, label, counts }) => ({ id, label, counts })) };
+const isValidCounts = (ids) => ids === undefined || (Array.isArray(ids) && ids.every((id) => typeof id === "string"));
+
+function pickSettings({ statuses, sections, sprintCounts, monthCounts }) {
+  return {
+    statuses: statuses.map(pickStatusFields),
+    ...(sections === undefined ? {} : { sections: sections.map(({ id, label, counts }) => ({ id, label, counts })) }),
+    ...(sprintCounts === undefined ? {} : { sprintCounts: [...sprintCounts] }),
+    ...(monthCounts === undefined ? {} : { monthCounts: [...monthCounts] }),
+  };
 }
 
 function isValidNote(note) {
@@ -58,11 +66,13 @@ function isValidNote(note) {
     && Number.isFinite(note.updatedAt)
     && (note.deletedAt === null || Number.isFinite(note.deletedAt))
     && (note.sprint === undefined || note.sprint === null || isValidSprint(note.sprint))
+    && (note.board === undefined || isValidBoard(note.board))
     && (note.position === undefined || Number.isFinite(note.position));
 }
 
-function pickNoteFields({ id, html, pinned, updatedAt, deletedAt, sprint, position }) {
+function pickNoteFields({ id, html, pinned, updatedAt, deletedAt, sprint, board, position }) {
   const note = { id, html, pinned, updatedAt, deletedAt, ...(position === undefined ? {} : { position }) };
+  if (board) return { ...note, board: pickBoard(board) };
   return sprint ? { ...note, sprint: pickSprintFields(sprint) } : note;
 }
 
