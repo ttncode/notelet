@@ -14,6 +14,8 @@ export function setupLayout({ resizer, ui, onUiChange }) {
   return {
     toggleSidebar,
     showEditor: () => document.body.classList.add("show-editor"),
+    // A narrow screen shows either the list or the note; this puts back one taken from history.
+    setPane: (pane) => document.body.classList.toggle("show-editor", pane === "note"),
     showList: () => {
       document.body.classList.remove("show-editor");
       if (document.body.classList.contains("sidebar-hidden")) toggleSidebar();

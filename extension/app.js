@@ -12,6 +12,7 @@ import { mergeNote } from "./merge.js";
 import { legacySections, normalizeSettings, sameSettings, upgradeNote } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
 import { sanitizeHtml } from "./sanitize.js";
+import { createNavigation } from "./navigation.js";
 import { createSaveScheduler } from "./scheduler.js";
 import { openShortcuts } from "./shortcut-editor.js";
 import { renderNoteList } from "./sidebar.js";
@@ -26,6 +27,7 @@ const VIEWPORT_MARGIN_PX = 8;
 const IS_POPUP = new URLSearchParams(location.search).get("view") === "popup";
 const FULL_PAGE_URL = chrome.runtime.getURL("notes.html");
 const IS_MAC = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platform);
+const NARROW = matchMedia("(max-width: 699px)");
 const MERGE_CONFLICT_MESSAGE = "This note was also edited in another window. A paragraph you both changed now appears in both versions; for anything else, this window's change was kept.";
 const SAVE_FAILED_MESSAGE = "Couldn't save your last change. Your text is still here — keep this tab open and try again, or export a backup.";
 
@@ -48,6 +50,14 @@ let editor;
 let taskEditor;
 let layout;
 let boardView;
+let steps;
+// Views reach the steps through this, since they are set up once the first note is on screen.
+const navigation = {
+  forward: (update) => steps.forward(update),
+  jump: (direction, update) => steps.jump(direction, update),
+  back: (fallback) => steps.back(fallback),
+  replace: () => steps?.replace(),
+};
 let uiSaveTimer = null;
 
 main().catch((error) => {
@@ -71,11 +81,42 @@ async function main() {
   layout = setupLayout({ resizer: byId("resizer"), ui: state.ui, onUiChange: saveUiSoon });
   const taskNote = byId("task-note");
   taskEditor = new NoteEditor({ element: taskNote, isMac: IS_MAC, onChange: onTaskNoteChange });
-  boardView = createBoardView({ container: byId("board"), noteElement: taskNote, isMac: IS_MAC, onChange: onBoardChange, onSettings: openSettings, onOpenTask: loadTaskNote });
+  boardView = createBoardView({ container: byId("board"), noteElement: taskNote, isMac: IS_MAC, navigation, onChange: onBoardChange, onSettings: openSettings, onOpenTask: loadTaskNote });
   applyShortcutTitles(document, IS_MAC);
   wireControls();
   store.onChange(applyRemoteChanges);
   openInitialNote();
+  steps = createNavigation({ readView, showView });
+}
+
+function readView() {
+  const pane = document.body.classList.contains("show-editor") ? "note" : "list";
+  const board = notes.get(state.currentId)?.board ? boardView.viewState() : null;
+  return { mode: state.mode, noteId: state.currentId, pane, board };
+}
+
+function showView(view) {
+  if (view.mode !== state.mode) {
+    state.mode = view.mode;
+    clearSearch();
+  }
+  if (view.noteId !== state.currentId && notes.has(view.noteId)) selectNote(view.noteId, { reveal: false });
+  else renderAll();
+  layout.setPane(view.pane);
+  if (view.board && notes.get(state.currentId)?.board) boardView.showViewState(view.board);
+}
+
+// Opening a note from the list is a step forward on a narrow screen, where the note replaces the
+// list; beside the list it only swaps the note.
+function openNote(update) {
+  if (NARROW.matches && !document.body.classList.contains("show-editor")) navigation.forward(update);
+  else update();
+}
+
+// A narrow screen showing a note goes back to the list with the iPhone slide.
+function showListFrom(update) {
+  if (NARROW.matches && document.body.classList.contains("show-editor")) navigation.jump("back", update);
+  else update();
 }
 
 async function removeStaleNotes() {
@@ -126,6 +167,7 @@ function selectNote(id, { scrollTop = 0, reveal = true } = {}) {
   byId("editor-scroll").scrollTop = scrollTop;
   if (reveal) layout.showEditor();
   saveUiSoon({ lastNoteId: id, scrollTop });
+  navigation.replace();
 }
 
 const loadEditor = (note) => editor.load(note.html, { emptyHtml: note.sprint || note.board ? EMPTY_BODY_HTML : EMPTY_NOTE_HTML });
@@ -321,18 +363,22 @@ function openBoard() {
     openCreated(newBoardNote({ now: Date.now() }));
     return;
   }
-  state.mode = "notes";
-  clearSearch();
-  selectNote(existing.id);
+  openNote(() => {
+    state.mode = "notes";
+    clearSearch();
+    selectNote(existing.id);
+  });
 }
 
 function openCreated(note) {
-  state.mode = "notes";
-  clearSearch();
   notes.set(note.id, note);
   persist([note]).catch(reportSaveError);
-  selectNote(note.id);
-  if (!note.board) editor.focusStart();
+  openNote(() => {
+    state.mode = "notes";
+    clearSearch();
+    selectNote(note.id);
+    if (!note.board) editor.focusStart();
+  });
 }
 
 function clearSearch() {
@@ -532,7 +578,7 @@ function wireButtons() {
     "delete-button": deleteCurrent,
     "recover-button": recoverCurrent,
     "sidebar-toggle": () => layout.toggleSidebar(),
-    "back-button": () => layout.showList(),
+    "back-button": () => navigation.back(() => layout.showList()),
     "deleted-toggle": toggleDeletedView,
     "deleted-menu-item": toggleDeletedView,
     "theme-button": cycleTheme,
@@ -567,7 +613,7 @@ function wireSidebar() {
   const list = byId("note-list");
   list.addEventListener("click", (event) => {
     const row = event.target.closest(".note-row");
-    if (row) selectNote(row.dataset.noteId);
+    if (row) openNote(() => selectNote(row.dataset.noteId));
   });
   list.addEventListener("keydown", onListKeydown);
   wireNoteDragging();
@@ -581,8 +627,11 @@ function onListKeydown(event) {
   const row = event.target.closest(".note-row");
   if (event.key === "Enter" && row) {
     event.preventDefault();
-    if (row.dataset.noteId !== state.currentId) selectNote(row.dataset.noteId);
-    focusEditor();
+    openNote(() => {
+      if (row.dataset.noteId !== state.currentId) selectNote(row.dataset.noteId);
+      layout.showEditor();
+      activeEditor().focus();
+    });
     return;
   }
   const step = { ArrowDown: 1, ArrowUp: -1 }[event.key];
@@ -666,20 +715,20 @@ function clearDropMarks() {
 
 // Each returns false when it does not apply here, so the key keeps its normal meaning.
 const APP_HOTKEYS = {
-  search: () => {
+  search: () => showListFrom(() => {
     layout.showList();
     byId("search").focus();
-  },
+  }),
   help: () => (byId("help").open ? byId("help").close() : showHelp()),
   focusList: () => focusNoteList(),
   focusEditor: () => focusEditor(),
   newNote: () => createNote(),
   newSprint: () => openBoard(),
   toggleSidebar: () => layout.toggleSidebar(),
-  listMenu: () => {
+  listMenu: () => showListFrom(() => {
     layout.showList();
     openMenu(byId("list-menu"));
-  },
+  }),
   deletedView: () => toggleDeletedView(),
   theme: () => cycleTheme(),
   export: () => exportNotes(),
@@ -733,15 +782,19 @@ function adoptSettings(settings) {
 }
 
 function focusNoteList() {
-  layout.showList();
-  const list = byId("note-list");
-  (list.querySelector('[aria-current="true"]') ?? list.querySelector(".note-row"))?.focus();
+  showListFrom(() => {
+    layout.showList();
+    const list = byId("note-list");
+    (list.querySelector('[aria-current="true"]') ?? list.querySelector(".note-row"))?.focus();
+  });
 }
 
 function focusEditor() {
   if (!notes.has(state.currentId)) return;
-  layout.showEditor();
-  activeEditor().focus();
+  openNote(() => {
+    layout.showEditor();
+    activeEditor().focus();
+  });
 }
 
 function positionFormatMenu(event) {

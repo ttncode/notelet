@@ -351,3 +351,37 @@ label.form-row > input[type="text"]:focus { background: var(--fill); outline: no
   .note-row[aria-current="true"]:hover { background: var(--hover); }
   .note-row[aria-current="true"]:focus-visible { background: var(--fill); box-shadow: none; }
 }
+
+/* Motion after iPhone Notes: a step deeper slides the new screen in from the right while the old
+   one drifts left and dims; going back reverses it. It stays still for reduced motion. */
+:root { --ease-ios: cubic-bezier(0.32, 0.72, 0, 1); --step-duration: 350ms; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar { view-transition-name: sidebar; }
+  .editor-pane { view-transition-name: pane; }
+  .toolbar { view-transition-name: toolbar; }
+  /* Opaque, so a sliding screen covers the one under it. */
+  .editor-pane, .toolbar { background: var(--bg); }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  ::view-transition-group(*) { animation-duration: var(--step-duration); animation-timing-function: var(--ease-ios); }
+  html[data-nav="forward"]::view-transition-new(pane) { animation: var(--step-duration) var(--ease-ios) both slide-in-from-right; box-shadow: -0.5rem 0 1.5rem rgb(0 0 0 / 0.2); }
+  html[data-nav="forward"]::view-transition-old(pane) { animation: var(--step-duration) var(--ease-ios) both drift-out-left; }
+  html[data-nav="back"]::view-transition-old(pane) { animation: var(--step-duration) var(--ease-ios) both slide-out-to-right; z-index: 1; }
+  html[data-nav="back"]::view-transition-new(pane) { animation: var(--step-duration) var(--ease-ios) both drift-in-left; }
+}
+
+/* Only one pane shows on a narrow screen, so the list and the note slide past each other. */
+@media (prefers-reduced-motion: no-preference) and (max-width: 699px) {
+  html[data-nav="forward"]::view-transition-old(sidebar) { animation: var(--step-duration) var(--ease-ios) both drift-out-left; }
+  html[data-nav="back"]::view-transition-new(sidebar) { animation: var(--step-duration) var(--ease-ios) both drift-in-left; }
+}
+
+/* Beside the list, only the note side moves, under the list. */
+@media (min-width: 700px) {
+  ::view-transition-group(sidebar) { z-index: 2; }
+}
+
+@keyframes slide-in-from-right { from { transform: translateX(100%); } }
+@keyframes slide-out-to-right { to { transform: translateX(100%); } }
+@keyframes drift-out-left { to { transform: translateX(-30%); filter: brightness(0.8); } }
+@keyframes drift-in-left { from { transform: translateX(-30%); filter: brightness(0.8); } }
