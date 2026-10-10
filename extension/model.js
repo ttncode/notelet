@@ -86,9 +86,3 @@ function positionBetween(above, below) {
 export function isExpired(note, now) {
   return note.deletedAt !== null && now - note.deletedAt > RECENTLY_DELETED_DAYS * DAY_MS;
 }
-
-// A note with an unsaved edit in this tab keeps the local version, so that edit's save
-// lands later and wins instead of being silently replaced.
-export function remoteNotesToApply(incoming, { local, isPending }) {
-  return incoming.filter((note) => !isPending(note.id) && !(local.get(note.id)?.updatedAt >= note.updatedAt));
-}

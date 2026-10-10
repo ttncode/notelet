@@ -23,8 +23,14 @@ const NOTE_ICON = '<svg class="icon task-note-mark" viewBox="0 0 24 24" aria-lab
 export function createBoardView({ container, noteElement, isMac, onChange, onSettings, onOpenTask }) {
   let context = null;
   let view = { screen: "list", listId: null, taskId: null, adding: false };
-  const render = (next = context, { focus = activeKey(container) } = {}) => {
+  let stale = false;
+  // whenIdle: a change from another window waits while a field here is being edited, so the
+  // caret stays put; the data is taken at once so the next edit builds on it.
+  const render = (next = context, { focus = activeKey(container), whenIdle = false } = {}) => {
+    const sameBoard = next !== null && context !== null;
     context = next;
+    stale = whenIdle && sameBoard && container.contains(document.activeElement);
+    if (stale) return;
     container.hidden = next === null;
     if (next === null) return container.replaceChildren();
     view = resolveView(next, view);
@@ -54,6 +60,9 @@ export function createBoardView({ container, noteElement, isMac, onChange, onSet
   };
   const handlers = { get: () => context, view: () => view, change, go, back, onSettings };
   wireEvents(container, handlers);
+  container.addEventListener("focusout", (event) => {
+    if (stale && !container.contains(event.relatedTarget)) render(context, { focus: null });
+  });
   return {
     render,
     back,
