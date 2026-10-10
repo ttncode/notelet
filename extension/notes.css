@@ -289,4 +289,9 @@ body:not(.viewing-deleted) #recover-button { display: none; }
   body.show-editor .sidebar { display: none; }
   body:not(.show-editor) .editor-pane { display: none; }
   .back-button { display: inline-flex; }
+  /* With the editor hidden, the open note gets no highlight, as in iPhone Notes. */
+  .note-row[aria-current="true"] { background: none; }
+  .note-row[aria-current="true"]::before, .note-row[aria-current="true"] + .note-row::before { display: block; }
+  .note-row[aria-current="true"]:hover { background: var(--hover); }
+  .note-row[aria-current="true"]:focus-visible { background: var(--fill); box-shadow: none; }
 }

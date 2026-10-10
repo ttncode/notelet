@@ -580,7 +580,7 @@ const APP_HOTKEYS = {
     byId("search").focus();
   },
   help: () => (byId("help").open ? byId("help").close() : showHelp()),
-  focusList: () => focusFirstNote(),
+  focusList: () => focusNoteList(),
   focusEditor: () => focusEditor(),
   newNote: () => createNote(),
   newSprint: () => createSprint(),
@@ -631,9 +631,10 @@ function onMenuKeydown(event) {
 
 const showHelp = () => openHelp({ dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version });
 
-function focusFirstNote() {
+function focusNoteList() {
   layout.showList();
-  byId("note-list").querySelector(".note-row")?.focus();
+  const list = byId("note-list");
+  (list.querySelector('[aria-current="true"]') ?? list.querySelector(".note-row"))?.focus();
 }
 
 function focusEditor() {
