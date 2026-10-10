@@ -2,7 +2,8 @@ import { createElement } from "./dom.js";
 import { HOTKEYS, comboOf, defaultHotkey, hotkeyLabel, isEditable, isModifierOnly, reservedReason, sameCombo } from "./hotkeys.js";
 
 // The Keyboard Shortcuts sheet, grouped as in HOTKEYS. Clicking a key records the next key
-// combination for it; Esc cancels and Backspace removes the key. A key another shortcut uses
+// combination for it; Esc, Tab, clicking anywhere else or clicking the key again cancels, and
+// Backspace removes the key. A key another shortcut uses
 // asks before taking it over. Every change goes straight to onChange(keys) with the full set
 // of changed keys, so Done only closes the sheet.
 export function openShortcuts({ dialog, isMac, version, keys, onChange }) {
@@ -15,16 +16,23 @@ export function openShortcuts({ dialog, isMac, version, keys, onChange }) {
   };
   const render = () => renderGroups(dialog, { isMac, keys: current, recording, message });
   const stopRecording = (nextMessage = null) => {
+    const id = recording;
     recording = null;
     message = nextMessage;
     render();
+    if (id) dialog.querySelector(`[data-hotkey-id="${id}"] .key-button`)?.focus();
   };
   dialog.querySelector(".help-groups").onclick = (event) => {
     const target = event.target.closest("[data-shortcut-action]");
     if (!target) return;
     const id = target.closest("[data-hotkey-id]").dataset.hotkeyId;
     const actions = {
-      record: () => { recording = id; message = null; render(); },
+      record: () => {
+        if (recording === id) return stopRecording();
+        recording = id;
+        message = null;
+        render();
+      },
       reset: () => { update(withoutKey(current, id)); stopRecording(); },
       replace: () => { update({ ...withKey(current, message.id, message.combo), [message.otherId]: null }); stopRecording(); },
       cancel: () => stopRecording(),
@@ -32,10 +40,17 @@ export function openShortcuts({ dialog, isMac, version, keys, onChange }) {
     actions[target.dataset.shortcutAction]();
     dialog.querySelector(`[data-hotkey-id="${id}"] .key-button`)?.focus();
   };
+  dialog.onclick = (event) => {
+    if (recording !== null && !event.target.closest("[data-shortcut-action]")) stopRecording();
+  };
   dialog.onkeydown = (event) => {
     if (recording === null) return;
     event.preventDefault();
     event.stopPropagation();
+    if (event.key === "Tab" && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      stopRecording();
+      return;
+    }
     const result = recordKey(event, { id: recording, keys: current, isMac });
     if (result.keys) update(result.keys);
     if (result.wait) return;
@@ -51,6 +66,8 @@ export function openShortcuts({ dialog, isMac, version, keys, onChange }) {
   render();
   dialog.showModal();
 }
+
+const RECORDING_HINT = "Press the new keys. Esc or a click elsewhere cancels; Backspace removes the key.";
 
 // Returns the new keys, a message to show, or wait: true while only modifiers are held.
 function recordKey(event, { id, keys, isMac }) {
@@ -100,6 +117,7 @@ function shortcutRows(hotkey, { isMac, changed, recording, message }) {
   const row = createElement("tr");
   row.dataset.hotkeyId = hotkey.id;
   row.append(createElement("td", "", hotkey.label), keyCell(hotkey, { isMac, changed, isRecording: recording === hotkey.id }));
+  if (recording === hotkey.id) return [row, messageRow(hotkey.id, { text: RECORDING_HINT, hint: true })];
   if (message?.id !== hotkey.id) return [row];
   return [row, messageRow(hotkey.id, message)];
 }
@@ -125,7 +143,7 @@ function keyCell(hotkey, { isMac, changed, isRecording }) {
 }
 
 function messageRow(id, message) {
-  const row = createElement("tr", "key-message");
+  const row = createElement("tr", message.hint ? "key-message key-hint" : "key-message");
   row.dataset.hotkeyId = id;
   const cell = createElement("td", "", message.text);
   cell.colSpan = 2;
