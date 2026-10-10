@@ -8,6 +8,7 @@ const FALLBACK_TITLE = "New Note";
 const FALLBACK_PREVIEW = "No additional text";
 
 export const EMPTY_NOTE_HTML = "<h1><br></h1>";
+export const BOARD_TITLE = "Sprints";
 export const EMPTY_BODY_HTML = "<p><br></p>";
 
 export function parseHtml(html) {
@@ -34,9 +35,13 @@ export const notePreview = (html) => noteLines(html)[1] ?? FALLBACK_PREVIEW;
 export const noteText = (html) => noteLines(html).join("\n");
 export const isEmptyNote = (html) => noteLines(html).length === 0;
 
-// A tracker keeps its title and tasks outside the note text, so empty text does not make it blank.
-export const isBlankNote = (note) => !note.sprint && isEmptyNote(note.html);
-export const noteTitleOf = (note) => (note.sprint ? trackerTitle(note.sprint) : noteTitle(note.html));
+// A tracker or the Sprints board keeps its content outside the note text, so empty text does not make it blank.
+export const isBlankNote = (note) => !note.sprint && !note.board && isEmptyNote(note.html);
+
+export function noteTitleOf(note) {
+  if (note.board) return BOARD_TITLE;
+  return note.sprint ? trackerTitle(note.sprint) : noteTitle(note.html);
+}
 
 export function newNote(now) {
   return { id: crypto.randomUUID(), html: EMPTY_NOTE_HTML, pinned: false, updatedAt: now, deletedAt: null, position: now };

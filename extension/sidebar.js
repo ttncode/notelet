@@ -1,6 +1,7 @@
 import { createElement } from "./dom.js";
 import { formatRowDate } from "./format.js";
 import { notePreview, noteTitleOf } from "./model.js";
+import { currentSprint, sprintName } from "./board.js";
 import { formatSprintRange } from "./sprint.js";
 
 export function renderNoteList(container, { groups, currentId, emptyText, now, draggable }) {
@@ -28,7 +29,15 @@ function renderRow(note, { isCurrent, now, draggable }) {
   row.title = draggable ? "Enter opens it · Alt+↑ / Alt+↓ moves it" : "Enter opens it";
   if (isCurrent) row.setAttribute("aria-current", "true");
   const meta = createElement("span", "note-row-meta");
-  meta.append(createElement("span", "note-row-date", formatRowDate(note.updatedAt, now)), createElement("span", "note-row-preview", note.sprint ? formatSprintRange(note.sprint) : notePreview(note.html)));
+  meta.append(createElement("span", "note-row-date", formatRowDate(note.updatedAt, now)), createElement("span", "note-row-preview", previewOf(note, now)));
   row.append(createElement("span", "note-row-title", noteTitleOf(note)), meta);
   return row;
+}
+
+function previewOf(note, now) {
+  if (note.board) {
+    const sprint = currentSprint(note.board, new Date(now));
+    return sprint ? sprintName(sprint) : "No sprints yet";
+  }
+  return note.sprint ? formatSprintRange(note.sprint) : notePreview(note.html);
 }

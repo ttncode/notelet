@@ -1,4 +1,5 @@
 import { addDays, isIsoDate, isoDate, formatShortDate, sprintDatesFrom, workingDaysBetween } from "./sprint.js";
+import { BOARD_TITLE } from "./model.js";
 import { roundPoints } from "./tracker.js";
 
 // The Sprints note keeps every sprint and the backlog in note.board:
@@ -7,7 +8,6 @@ import { roundPoints } from "./tracker.js";
 // An empty sprint name means the sprint is named after its dates. Every edit returns a new board.
 
 export const BACKLOG_ID = "backlog";
-export const BOARD_TITLE = "Sprints";
 const DEFAULT_GOAL = 18;
 export const MAX_SPRINT_NAME_LENGTH = 100;
 const MAX_TITLE_LENGTH = 1000;

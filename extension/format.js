@@ -10,3 +10,5 @@ export function formatRowDate(timestamp, now) {
 export const formatEditedDate = (timestamp) => new Date(timestamp).toLocaleString(LOCALE, { dateStyle: "long", timeStyle: "short", hourCycle: "h23" });
 
 export const formatDayMonth = (utcTimestamp) => new Date(utcTimestamp).toLocaleDateString(LOCALE, { day: "2-digit", month: "2-digit", timeZone: "UTC" });
+
+export const formatMonth = (month) => new Date(`${month}-01T00:00:00Z`).toLocaleDateString(LOCALE, { month: "long", year: "numeric", timeZone: "UTC" });

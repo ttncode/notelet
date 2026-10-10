@@ -1,14 +1,15 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
 import { closeOnOutsideClick, downloadFile, openHelp, pickTextFile, showToast } from "./dialogs.js";
+import { mergeTrackers, newBoardNote } from "./board-merge.js";
+import { boardSearchText, findSprint, removeSprint, updateSprint } from "./board.js";
+import { createBoardView } from "./board-view.js";
 import { NoteEditor } from "./editor.js";
 import { formatEditedDate } from "./format.js";
 import { applyShortcutTitles, matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
-import { legacySections, newSprint, normalizeSettings, sameSettings, upgradeNote } from "./sprint.js";
+import { legacySections, normalizeSettings, sameSettings, upgradeNote } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
-import { trackerSearchText } from "./tracker.js";
-import { createTrackerView } from "./tracker-view.js";
 import { sanitizeHtml } from "./sanitize.js";
 import { createSaveScheduler } from "./scheduler.js";
 import { renderNoteList } from "./sidebar.js";
@@ -37,7 +38,7 @@ const saves = createSaveScheduler({ delayMs: SAVE_DELAY_MS, maxWaitMs: SAVE_MAX_
 const state = { currentId: null, mode: "notes", query: "", ui: null, settings: null };
 let editor;
 let layout;
-let tracker;
+let boardView;
 let uiSaveTimer = null;
 
 main().catch((error) => {
@@ -55,7 +56,7 @@ async function main() {
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
   layout = setupLayout({ resizer: byId("resizer"), ui: state.ui, onUiChange: saveUiSoon });
-  tracker = createTrackerView({ container: byId("tracker"), isMac: IS_MAC, onChange: onTrackerChange, onSettings: openSettings });
+  boardView = createBoardView({ container: byId("board"), isMac: IS_MAC, onChange: onBoardChange, onSettings: openSettings });
   applyShortcutTitles(document, IS_MAC);
   wireControls();
   store.onChange(applyRemoteChanges);
@@ -87,7 +88,8 @@ function visibleNotes() {
 }
 
 function searchText(note) {
-  return note.sprint ? `${trackerSearchText(note.sprint, state.settings.statuses)}\n${noteText(note.html)}` : noteText(note.html);
+  if (!note.board) return noteText(note.html);
+  return `${boardSearchText(note.board, { statuses: state.settings.statuses, noteText })}\n${noteText(note.html)}`;
 }
 
 function selectFirstVisible() {
@@ -111,7 +113,7 @@ function selectNote(id, { scrollTop = 0, reveal = true } = {}) {
   saveUiSoon({ lastNoteId: id, scrollTop });
 }
 
-const loadEditor = (note) => editor.load(note.html, { emptyHtml: note.sprint ? EMPTY_BODY_HTML : EMPTY_NOTE_HTML });
+const loadEditor = (note) => editor.load(note.html, { emptyHtml: note.sprint || note.board ? EMPTY_BODY_HTML : EMPTY_NOTE_HTML });
 
 function discardIfEmpty(previousId, nextId) {
   const previous = notes.get(previousId);
@@ -198,34 +200,39 @@ function renderEditorPane() {
 }
 
 function renderNoteDetails(note) {
-  const sprint = note?.sprint ?? null;
-  document.body.classList.toggle("tracker-view", sprint !== null);
-  tracker.render(sprint ? { sprint, statuses: state.settings.statuses, today: new Date(), editable: state.mode === "notes" } : null);
+  const board = note?.board ?? null;
+  document.body.classList.toggle("board-view", board !== null);
+  boardView.render(board ? { board, settings: state.settings, today: new Date(), editable: state.mode === "notes" } : null);
   document.title = note ? `${noteTitleOf(note)} – Notelet` : "Notelet";
 }
 
-// Typing in a tracker field saves without a rebuild; the notes list still shows the new title.
-function onTrackerChange(sprint) {
+// A board edit saves without rebuilding the editor; the board view redraws itself when it needs to.
+function onBoardChange(board) {
   const note = notes.get(state.currentId);
-  if (!note?.sprint || note.deletedAt !== null) return;
-  const updated = { ...note, sprint, updatedAt: Date.now() };
+  if (!note?.board || note.deletedAt !== null) return;
+  const updated = { ...note, board, updatedAt: Date.now() };
   notes.set(updated.id, updated);
   saves.schedule(updated.id);
   renderList();
   byId("note-date").textContent = formatEditedDate(updated.updatedAt);
-  document.title = `${noteTitleOf(updated)} – Notelet`;
 }
 
 function openSettings() {
   const note = notes.get(state.currentId);
-  if (!note?.sprint) return;
-  openSprintSettings({ dialog: byId("sprint-settings"), sprint: note.sprint, statuses: state.settings.statuses, onSave: saveSprintSettings });
+  if (!note?.board) return;
+  const sprint = findSprint(note.board, boardView.viewedSprintId());
+  openSprintSettings({ dialog: byId("sprint-settings"), sprint, settings: state.settings, onSave: saveSprintSettings, onDelete: deleteSprint });
 }
 
-function saveSprintSettings({ sprint, statuses }) {
-  state.settings = { statuses };
+function saveSprintSettings({ sprintId, sprintChange, settings }) {
+  state.settings = settings;
   store.saveSettings(state.settings).catch(reportSaveError);
-  updateCurrent(() => ({ sprint }));
+  if (sprintId) updateCurrent((note) => ({ board: updateSprint(note.board, { sprintId, change: sprintChange }) }));
+  renderAll();
+}
+
+function deleteSprint(sprintId) {
+  updateCurrent((note) => ({ board: removeSprint(note.board, sprintId) }));
   renderAll();
 }
 
@@ -274,9 +281,16 @@ function createNote() {
   openCreated(newNote(Date.now()));
 }
 
-function createSprint() {
-  openCreated(newSprint(Date.now(), [...notes.values()]));
-  tracker.focusTitle();
+// There is one Sprints note; it is made the first time it is asked for.
+function openBoard() {
+  const existing = liveNotes().find((note) => note.board);
+  if (!existing) {
+    openCreated(newBoardNote({ now: Date.now() }));
+    return;
+  }
+  state.mode = "notes";
+  clearSearch();
+  selectNote(existing.id);
 }
 
 function openCreated(note) {
@@ -285,7 +299,7 @@ function openCreated(note) {
   notes.set(note.id, note);
   store.saveNotes([note]).catch(reportSaveError);
   selectNote(note.id);
-  if (!note.sprint) editor.focusStart();
+  if (!note.board) editor.focusStart();
 }
 
 function clearSearch() {
@@ -308,11 +322,27 @@ function deleteCurrent() {
   selectFirstVisible();
 }
 
+// A recovered tracker note from before the Sprints note joins the board.
 function recoverCurrent() {
   const recovered = updateCurrent(() => ({ deletedAt: null }));
   if (!recovered) return;
   state.mode = "notes";
-  selectNote(recovered.id);
+  if (!recovered.sprint) {
+    selectNote(recovered.id);
+    return;
+  }
+  absorbTrackers();
+  openBoard();
+}
+
+function absorbTrackers() {
+  const changed = mergeTrackers([...notes.values()], { counts: state.settings.sprintCounts, now: Date.now() });
+  changed.forEach((note) => {
+    saves.cancel(note.id);
+    notes.set(note.id, note);
+  });
+  if (changed.length > 0) store.saveNotes(changed).catch(reportSaveError);
+  return changed.map((note) => note.id);
 }
 
 function toggleDeletedView() {
@@ -344,7 +374,7 @@ async function importNotes() {
     saves.cancel(note.id);
     notes.set(note.id, note);
   });
-  refreshAfterOutsideChange(imported.map((note) => note.id));
+  refreshAfterOutsideChange([...imported.map((note) => note.id), ...absorbTrackers()]);
   showToast(`Imported ${imported.length} ${imported.length === 1 ? "note" : "notes"}.`);
 }
 
@@ -385,10 +415,10 @@ function refreshAfterOutsideChange(changedIds) {
   renderAll();
 }
 
-// A focused tracker field counts as editing, so a save from another tab waits instead of
+// A focused board field counts as editing, so a save from another tab waits instead of
 // replacing the task being typed into.
 function isEditingCurrentNote() {
-  return editor.isFocused() || tracker.isEditing();
+  return editor.isFocused() || boardView.isEditing();
 }
 
 function wireControls() {
@@ -429,7 +459,7 @@ function wireComposeMenu() {
   for (const button of menu.querySelectorAll("[data-compose]")) {
     button.addEventListener("click", () => {
       menu.hidePopover();
-      if (button.dataset.compose === "sprint") createSprint();
+      if (button.dataset.compose === "sprint") openBoard();
       else createNote();
     });
   }
@@ -583,7 +613,7 @@ const APP_HOTKEYS = {
   focusList: () => focusNoteList(),
   focusEditor: () => focusEditor(),
   newNote: () => createNote(),
-  newSprint: () => createSprint(),
+  newSprint: () => openBoard(),
   toggleSidebar: () => layout.toggleSidebar(),
   listMenu: () => {
     layout.showList();
@@ -599,11 +629,7 @@ const APP_HOTKEYS = {
   deleteNote: () => notes.has(state.currentId) && deleteCurrent(),
   recover: () => state.mode === "deleted" && notes.has(state.currentId) && recoverCurrent(),
   openFullPage: () => IS_POPUP && openFullPage().catch((error) => console.error("Notelet: could not open the full page", error)),
-  trackerSettings: () => Boolean(notes.get(state.currentId)?.sprint) && openSettings(),
-  addGroup: () => tracker.addGroup(),
-  toggleGroup: () => tracker.toggleFocusedGroup(),
-  // Ticking inside the note text is the editor's; this covers a focused task.
-  toggleCheck: () => tracker.tickFocusedTask(),
+  trackerSettings: () => Boolean(notes.get(state.currentId)?.board) && openSettings(),
 };
 
 function onAppHotkey(event) {
