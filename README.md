@@ -18,6 +18,7 @@
 <p align="center">
   <a href="https://github.com/ttncode/notelet/releases/latest"><b>Download</b></a> ·
   <a href="#install">Install</a> ·
+  <a href="#screenshots">Screenshots</a> ·
   <a href="#sprints">Sprints</a> ·
   <a href="#keyboard-shortcuts">Shortcuts</a> ·
   <a href="#back-up-and-restore">Backups</a>
@@ -37,10 +38,34 @@
 - **Two windows, nothing lost.** Edit in the popup and a full page at once; changes merge instead of overwriting each other.
 - **Private.** Notes stay in your Chrome profile. Export a backup file whenever you like.
 
-<p>
-  <img src="assets/screenshots/notelet-narrow-list.png" width="260" alt="Narrow layout in dark mode showing the notes list as Pinned and Notes cards with 24-hour times, the note count and the compose button at the bottom">
-  <img src="assets/screenshots/notelet-narrow-note.png" width="260" alt="Narrow layout in dark mode showing the current sprint with its status donut and its tasks, each with points and a status">
-</p>
+
+## Screenshots
+
+### Notes, with every text style
+
+Title, Heading and Subheading, **bold**, *italic*, underline and ~~strikethrough~~, links, checklists, bulleted, dashed, numbered and nested lists, and Monostyled text.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/notelet-note-dark.png">
+  <img src="assets/screenshots/notelet-note-light.png" width="900" alt="A note called Release Checklist showing a title, a heading, body text with bold, italic, underline, strikethrough and a link, a subheading, a checklist with two items ticked, bulleted, nested, dashed and numbered lists, and monostyled text">
+</picture>
+
+### The iPhone layout
+
+In a narrow window, such as the popup, Notelet shows one screen at a time and slides between them like iPhone Notes.
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="assets/screenshots/notelet-narrow-list.png" width="240" alt="Notes list with Pinned and Notes cards, 24-hour times, the note count and the compose button"><br><sub><b>Notes list</b></sub></td>
+    <td align="center" width="33%"><img src="assets/screenshots/notelet-narrow-note.png" width="240" alt="Current sprint with its status donut and its tasks, each with points and a status"><br><sub><b>Current sprint</b></sub></td>
+    <td align="center" width="33%"><img src="assets/screenshots/notelet-narrow-task.png" width="240" alt="A task open with its title, points, status, sprint and a note with a checklist item"><br><sub><b>A task and its note</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/notelet-narrow-all-sprints.png" width="240" alt="All Sprints grouped by month, each sprint with done and goal points and a progress bar, and the Backlog"><br><sub><b>All Sprints by month</b></sub></td>
+    <td align="center"><img src="assets/screenshots/notelet-narrow-settings.png" width="240" alt="Sprint Settings sheet with the sprint's name, dates and goal and the statuses that count as done"><br><sub><b>Sprint Settings</b></sub></td>
+    <td align="center"><img src="assets/screenshots/notelet-narrow-shortcuts.png" width="240" alt="Keyboard Shortcuts sheet recording a new key for Open Sprints, with a hint on how to cancel"><br><sub><b>Changing a shortcut</b></sub></td>
+  </tr>
+</table>
 
 Notelet is an independent project and is not affiliated with or endorsed by Apple.
 
