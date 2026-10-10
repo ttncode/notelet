@@ -353,7 +353,8 @@ label.form-row > input[type="text"]:focus { background: var(--fill); outline: no
 }
 
 /* Motion after iPhone Notes: a step deeper slides the new screen in from the right while the old
-   one drifts left and dims; going back reverses it. It stays still for reduced motion. */
+   one drifts left and dims; going back reverses it. Sheets rise from the bottom, menus grow from
+   their button, and rows highlight while pressed. All of it stays still for reduced motion. */
 :root { --ease-ios: cubic-bezier(0.32, 0.72, 0, 1); --step-duration: 350ms; }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -368,6 +369,17 @@ label.form-row > input[type="text"]:focus { background: var(--fill); outline: no
   html[data-nav="forward"]::view-transition-old(pane) { animation: var(--step-duration) var(--ease-ios) both drift-out-left; }
   html[data-nav="back"]::view-transition-old(pane) { animation: var(--step-duration) var(--ease-ios) both slide-out-to-right; z-index: 1; }
   html[data-nav="back"]::view-transition-new(pane) { animation: var(--step-duration) var(--ease-ios) both drift-in-left; }
+
+  .sheet { transform: translateY(100vh); transition: transform 400ms var(--ease-ios), overlay 400ms allow-discrete, display 400ms allow-discrete; }
+  .sheet[open] { transform: none; }
+  .sheet::backdrop { background: rgb(0 0 0 / 0); transition: background-color 400ms var(--ease-ios), overlay 400ms allow-discrete, display 400ms allow-discrete; }
+  .sheet[open]::backdrop { background: rgb(0 0 0 / 0.4); }
+  .format-menu { opacity: 0; transform: scale(0.9); transform-origin: top right; transition: opacity 160ms ease-out, transform 240ms var(--ease-ios), overlay 240ms allow-discrete, display 240ms allow-discrete; }
+  .format-menu:popover-open { opacity: 1; transform: none; }
+
+  .note-row, .task-row, .nav-row, .board-add, .menu-item, .style-option { transition: background-color 200ms ease-out; }
+  .note-row:active, .task-row:active, .nav-row:active, .board-add:active { background: var(--fill); transition-duration: 0s; }
+  .editor ul.checklist > li::before, .task-status { transition: background-color 150ms ease-out, border-color 150ms ease-out; }
 }
 
 /* Only one pane shows on a narrow screen, so the list and the note slide past each other. */
@@ -379,6 +391,12 @@ label.form-row > input[type="text"]:focus { background: var(--fill); outline: no
 /* Beside the list, only the note side moves, under the list. */
 @media (min-width: 700px) {
   ::view-transition-group(sidebar) { z-index: 2; }
+}
+
+@starting-style {
+  .sheet[open] { transform: translateY(100vh); }
+  .sheet[open]::backdrop { background: rgb(0 0 0 / 0); }
+  .format-menu:popover-open { opacity: 0; transform: scale(0.9); }
 }
 
 @keyframes slide-in-from-right { from { transform: translateX(100%); } }
