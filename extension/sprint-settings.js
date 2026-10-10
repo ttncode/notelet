@@ -1,38 +1,59 @@
 import { createElement } from "./dom.js";
+import { sprintName } from "./board.js";
 import { DEFAULT_STATUSES, newStatusId, validateSprintSettings } from "./sprint.js";
 
 const NEW_STATUS_COLOR = "#64d2ff";
 const MAX_LABEL_LENGTH = 20;
 
-// Groups are edited on a copy: ticking "count points" or removing a group only applies on Save.
-export function openSprintSettings({ dialog, sprint, statuses, onSave }) {
+// sprint is null when the sheet opens from the backlog; then only the shared settings show.
+// Ticks in the two count lists follow the statuses as they are edited above Save.
+export function openSprintSettings({ dialog, sprint, settings, onSave, onDelete }) {
   const field = (id) => dialog.querySelector(`#${id}`);
   const statusList = field("sprint-statuses");
-  const groupList = field("sprint-groups");
-  let groups = sprint.groups.map((group) => ({ ...group }));
-  const renderGroups = () => groupList.replaceChildren(...groups.map((group) => groupRow(group, {
-    onToggle: () => { groups = groups.map((other) => (other === group ? { ...other, counts: !other.counts } : other)); renderGroups(); },
-    onRemove: () => { if (confirmRemoval(group)) { groups = groups.filter((other) => other !== group); renderGroups(); } },
-  })));
-  field("sprint-start").value = sprint.start;
-  field("sprint-end").value = sprint.end;
-  field("sprint-target").value = String(sprint.target);
-  renderGroups();
-  fillStatuses(statusList, statuses);
+  const counts = { sprint: new Set(settings.sprintCounts), month: new Set(settings.monthCounts) };
+  const renderCounts = () => {
+    const statuses = readStatuses(statusList);
+    field("sprint-counts").replaceChildren(...statuses.map((status) => countRow({ status, ids: counts.sprint, onToggle: renderCounts })));
+    field("month-counts").replaceChildren(...statuses.map((status) => countRow({ status, ids: counts.month, onToggle: renderCounts })));
+  };
+  fillSprintFields(field, sprint);
+  fillStatuses(statusList, settings.statuses);
+  renderCounts();
   field("sprint-error").textContent = "";
-  field("sprint-add-status").onclick = () => addStatus(statusList);
-  field("sprint-reset-statuses").onclick = () => fillStatuses(statusList, DEFAULT_STATUSES);
+  statusList.oninput = renderCounts;
+  statusList.onclick = renderCounts;
+  field("sprint-add-status").onclick = () => { addStatus(statusList); renderCounts(); };
+  field("sprint-reset-statuses").onclick = () => { fillStatuses(statusList, DEFAULT_STATUSES); renderCounts(); };
   field("sprint-cancel").onclick = () => dialog.close();
-  dialog.querySelector("form").onsubmit = (event) => submit(event, { field, statusList, onSave, sprint, groups: () => groups });
+  field("sprint-delete").onclick = () => {
+    if (!confirmDelete(sprint)) return;
+    dialog.close();
+    onDelete(sprint.id);
+  };
+  dialog.querySelector("form").onsubmit = (event) => submit(event, { field, statusList, counts, sprint, onSave });
   dialog.showModal();
 }
 
-function submit(event, { field, statusList, onSave, sprint, groups }) {
+function fillSprintFields(field, sprint) {
+  field("sprint-fields").hidden = sprint === null;
+  field("sprint-delete-card").hidden = sprint === null;
+  field("sprint-settings-title").textContent = sprint ? "Sprint Settings" : "Settings";
+  if (!sprint) return;
+  field("sprint-name").value = sprint.name;
+  field("sprint-name").placeholder = sprintName({ ...sprint, name: "" });
+  field("sprint-start").value = sprint.start;
+  field("sprint-end").value = sprint.end;
+  field("sprint-goal").value = String(sprint.goal);
+}
+
+function submit(event, { field, statusList, counts, sprint, onSave }) {
+  const statuses = readStatuses(statusList);
+  const kept = (ids) => statuses.map((status) => status.id).filter((id) => ids.has(id));
   const values = {
-    start: field("sprint-start").value,
-    end: field("sprint-end").value,
-    target: parseFloat(field("sprint-target").value),
-    statuses: readStatuses(statusList),
+    sprint: sprint && { name: field("sprint-name").value.trim(), start: field("sprint-start").value, end: field("sprint-end").value, goal: parseFloat(field("sprint-goal").value) },
+    statuses,
+    sprintCounts: kept(counts.sprint),
+    monthCounts: kept(counts.month),
   };
   const error = validateSprintSettings(values);
   if (error) {
@@ -40,24 +61,29 @@ function submit(event, { field, statusList, onSave, sprint, groups }) {
     field("sprint-error").textContent = error;
     return;
   }
-  onSave({ sprint: { ...sprint, start: values.start, end: values.end, target: values.target, groups: groups() }, statuses: values.statuses });
+  const { sprint: sprintChange, ...settings } = values;
+  onSave({ sprintId: sprint?.id ?? null, sprintChange, settings });
 }
 
-function confirmRemoval(group) {
-  if (group.tasks.length === 0) return true;
-  const tasks = `${group.tasks.length} ${group.tasks.length === 1 ? "task" : "tasks"}`;
-  return window.confirm(`Remove "${group.name || "Group"}" and its ${tasks} when you save?`);
+function confirmDelete(sprint) {
+  const tasks = sprint.tasks.length;
+  if (tasks === 0) return true;
+  return window.confirm(`Delete "${sprintName(sprint)}"? Its ${tasks} ${tasks === 1 ? "task moves" : "tasks move"} to the Backlog.`);
 }
 
-function groupRow(group, { onToggle, onRemove }) {
-  const item = createElement("li", "form-row group-option");
+function countRow({ status, ids, onToggle }) {
+  const item = createElement("li", "form-row");
   const toggle = createElement("button", "check-option");
   toggle.type = "button";
   toggle.setAttribute("role", "checkbox");
-  toggle.setAttribute("aria-checked", String(group.counts));
-  toggle.append(createElement("span", "", group.name || "Group"), createElement("span", "check-mark", "✓"));
-  toggle.addEventListener("click", onToggle);
-  item.append(toggle, iconButton({ text: "−", name: `Remove ${group.name || "group"}`, className: "remove-button", onClick: onRemove }));
+  toggle.setAttribute("aria-checked", String(ids.has(status.id)));
+  toggle.append(createElement("span", "", status.label || "Status"), createElement("span", "check-mark", "✓"));
+  toggle.addEventListener("click", () => {
+    if (ids.has(status.id)) ids.delete(status.id);
+    else ids.add(status.id);
+    onToggle();
+  });
+  item.append(toggle);
   return item;
 }
 

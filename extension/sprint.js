@@ -1,8 +1,8 @@
 import { formatDayMonth } from "./format.js";
-import { EMPTY_BODY_HTML, newNote, noteLines, noteTitle, ownText, parseHtml } from "./model.js";
+import { noteLines, noteTitle, ownText, parseHtml } from "./model.js";
 import { convertTicket } from "./ticket-text.js";
 import { defaultSections, extractTracker, isValidSections } from "./sections.js";
-import { countedTasks, DEFAULT_GROUPS, DEFAULT_TRACKER_TITLE, isValidGroups, newGroup, roundPoints } from "./tracker.js";
+import { isValidGroups } from "./tracker.js";
 
 const DAY_MS = 86_400_000;
 const TICKET_SELECTOR = "ul.checklist > li";
@@ -11,7 +11,6 @@ const SPRINT_WORKING_DAYS = 10;
 const SATURDAY = 6;
 const SUNDAY = 0;
 const HALF_YEAR_DAYS = 183;
-const DEFAULT_TARGET = 18;
 const DONE_STATUS_ID = "s5";
 const MAX_LABEL_LENGTH = 20;
 const STATUS_ID = /^[a-z0-9-]{1,24}$/;
@@ -97,46 +96,20 @@ export function sprintDatesFrom(day) {
   return { start, end: addWorkingDays(start, SPRINT_WORKING_DAYS - 1) };
 }
 
-export function sprintStats(sprint, today) {
-  const tasks = countedTasks(sprint);
-  const pointed = tasks.filter((task) => task.points !== null);
-  const completed = roundPoints(pointed.filter((task) => task.done).reduce((sum, task) => sum + task.points, 0));
-  const days = Math.max(1, workingDaysBetween(sprint.start, sprint.end));
-  const todayIso = isoDate(today);
-  const day = todayIso < sprint.start ? 0 : Math.min(days, workingDaysBetween(sprint.start, todayIso < sprint.end ? todayIso : sprint.end));
-  return {
-    target: sprint.target,
-    completed,
-    missing: Math.max(0, roundPoints(sprint.target - completed)),
-    over: Math.max(0, roundPoints(completed - sprint.target)),
-    unpointed: tasks.length - pointed.length,
-    days,
-    day,
-    left: days - day,
-  };
-}
 
 export const formatShortDate = (iso) => formatDayMonth(utcDay(iso));
 
 export const formatSprintRange = (sprint) => `${formatShortDate(sprint.start)} – ${formatShortDate(sprint.end)}`;
 
-// A new tracker follows the latest one: it starts the next working day, keeps the target and
-// gets empty groups with the same names and count settings.
-export function newSprint(now, notes) {
-  const latest = notes
-    .filter((note) => note.sprint && note.deletedAt === null)
-    .sort((a, b) => b.sprint.end.localeCompare(a.sprint.end))[0];
-  const dates = sprintDatesFrom(latest ? addDays(latest.sprint.end, 1) : isoDate(new Date(now)));
-  const groups = (latest?.sprint.groups ?? DEFAULT_GROUPS).map(({ name, counts }) => newGroup({ name, counts }));
-  const sprint = { ...dates, target: latest?.sprint.target ?? DEFAULT_TARGET, title: DEFAULT_TRACKER_TITLE, groups };
-  return { ...newNote(now), html: EMPTY_BODY_HTML, sprint };
-}
 
-export function validateSprintSettings({ start, end, target, statuses }) {
-  if (!isIsoDate(start) || !isIsoDate(end) || end < start) return "The end date must be on or after the start date.";
-  if (!(Number.isFinite(target) && target > 0)) return "Target points must be more than 0.";
+// sprint is null when only the shared settings are edited.
+export function validateSprintSettings({ sprint, statuses, sprintCounts, monthCounts }) {
+  if (sprint && (!isIsoDate(sprint.start) || !isIsoDate(sprint.end) || sprint.end < sprint.start)) return "The end date must be on or after the start date.";
+  if (sprint && !(Number.isFinite(sprint.goal) && sprint.goal > 0)) return "Goal points must be more than 0.";
   if (statuses.length === 0) return "Keep at least one status.";
   if (statuses.some((status) => status.label.trim() === "")) return "Every status needs a label.";
+  if (sprintCounts.length === 0) return "Tick at least one status that counts as done for sprints.";
+  if (monthCounts.length === 0) return "Tick at least one status that counts as done for months.";
   return null;
 }
 

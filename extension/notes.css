@@ -12,6 +12,7 @@
   --accent: #e8a900;
   --accent-text: #946800;
   --red: #ff3b30;
+  --green: #248a3d;
   --selected: #ffe9a6;
   --hover: rgb(0 0 0 / 0.05);
   --sheet: #f2f2f7;
@@ -35,6 +36,7 @@
     --accent: #ffd60a;
     --accent-text: #ffd60a;
     --red: #ff453a;
+    --green: #30d158;
     --selected: #4d400f;
     --hover: rgb(255 255 255 / 0.07);
     --sheet: #1c1c1e;
@@ -58,6 +60,7 @@
   --accent: #ffd60a;
   --accent-text: #ffd60a;
   --red: #ff453a;
+  --green: #30d158;
   --selected: #4d400f;
   --hover: rgb(255 255 255 / 0.07);
   --sheet: #1c1c1e;
@@ -163,13 +166,12 @@ body:not(.viewing-deleted) #recover-button { display: none; }
 }
 .editor a { color: var(--accent-text); cursor: pointer; }
 
-/* Task tracking: title, status donut, then one card of task rows per group. */
-.tracker { margin-bottom: 0.5rem; container-type: inline-size; }
-.tracker-head { display: flex; align-items: center; gap: 0.5rem; }
-.tracker-title { flex: 1; margin: 0; font-size: 1.65rem; font-weight: 700; line-height: 1.25; outline: none; }
-[data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--secondary); }
-.tracker-sub { margin: 0.15rem 0 1rem; font-size: 0.9rem; color: var(--secondary); }
-.tracker-chart { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem; padding: 1rem; border-radius: 10px; background: var(--note-card); }
+/* Sprints: one screen at a time — a sprint or the backlog, all sprints by month, or one task. */
+.board { margin-bottom: 0.5rem; container-type: inline-size; }
+.board-head { display: flex; align-items: center; gap: 0.5rem; }
+.board-title { flex: 1; margin: 0; font-size: 1.65rem; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+.board-sub { margin: 0.15rem 0 1rem; font-size: 0.9rem; color: var(--secondary); }
+.board-chart { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-bottom: 1rem; padding: 1rem; border-radius: 10px; background: var(--note-card); }
 .donut { position: relative; flex: none; width: 6.5rem; height: 6.5rem; }
 .donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .donut-label { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1.2; }
@@ -179,47 +181,82 @@ body:not(.viewing-deleted) #recover-button { display: none; }
 .legend-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; }
 .legend-points { color: var(--secondary); text-align: right; font-variant-numeric: tabular-nums; }
 .chart-note { grid-column: 1 / -1; margin: 0.3rem 0 0; color: var(--secondary); }
-.tracker-group { margin-bottom: 1.25rem; }
-.group-head { display: flex; align-items: center; gap: 0.5rem; padding: 0 0.25rem 0.4rem 1rem; }
-.group-name { min-width: 2rem; font-size: 1.05rem; font-weight: 700; outline: none; }
-.counts-badge { padding: 0 0.45rem; border: 0.5px solid var(--separator); border-radius: 999px; font-size: 0.75rem; color: var(--secondary); }
-.group-count { margin-left: auto; font-size: 0.8rem; color: var(--secondary); white-space: nowrap; }
-.group-toggle { display: grid; place-items: center; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--accent); }
-.group-toggle:hover { background: var(--hover); }
-.group-toggle .icon { width: 1.1rem; height: 1.1rem; transition: transform 0.15s; }
-.group-toggle[aria-expanded="false"] .icon { transform: rotate(-90deg); }
-.task-card { overflow: hidden; border-radius: 10px; background: var(--note-card); }
-.task-card.drop-into { box-shadow: inset 0 0 0 2px var(--accent); }
-.task-row { position: relative; display: grid; grid-template-columns: 0.75rem 1.25rem minmax(0, 1fr) 3.25rem auto; gap: 0.6rem; align-items: start; padding: 0.6rem 0.75rem 0.6rem 0.25rem; }
-.task-row + .task-row::before, .task-row + .add-task::before { content: ""; position: absolute; top: 0; left: 2.85rem; right: 0; border-top: 0.5px solid var(--separator); }
+.goal-met { color: var(--green); }
+.board-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 1rem; padding: 0.5rem 0.5rem 0.5rem 1rem; border-radius: 10px; background: var(--note-card); font-size: 0.9rem; }
+
+.task-card, .nav-card { overflow: hidden; border-radius: 10px; background: var(--note-card); }
+.task-card { margin-bottom: 1.25rem; }
+.task-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 3.25rem auto; gap: 0.5rem; align-items: center; padding: 0.15rem 0.75rem 0.15rem 0; }
+.task-row + .task-row::before, .task-row + .board-add::before, .task-row + .task-new::before, .nav-row + .nav-row::before {
+  content: ""; position: absolute; top: 0; left: 1rem; right: 0; border-top: 0.5px solid var(--separator);
+}
+.task-row:hover, .nav-row:hover, .board-add:hover { background: var(--hover); }
+/* The card clips an outline, so keyboard focus on a full-width row shows as a fill. */
+.nav-row:focus-visible, .board-add:focus-visible { outline: none; background: var(--fill); }
 .task-row.dragging { opacity: 0.45; }
 .task-row.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
 .task-row.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
-.task-grip { color: var(--secondary); font-size: 0.8rem; line-height: 1.45rem; text-align: center; opacity: 0; cursor: grab; user-select: none; }
-.task-row:hover .task-grip, .task-row:focus-within .task-grip { opacity: 0.8; }
-.task-tick { width: 1.25rem; height: 1.25rem; margin-top: 0.1rem; padding: 0; border: 1.5px solid var(--secondary); border-radius: 50%; background: none; }
-.task-tick[aria-checked="true"] { border-color: var(--accent); background: var(--accent) var(--check-mark) center / 75% no-repeat; }
-.task-tick:disabled { cursor: default; }
-.task-title { min-height: 1.45em; overflow-wrap: anywhere; outline: none; }
+.nav-row.drop-into { box-shadow: inset 0 0 0 2px var(--accent); }
+.task-open { display: flex; align-items: center; gap: 0.4rem; min-width: 0; padding: 0.45rem 0 0.45rem 1rem; border: 0; background: none; text-align: left; cursor: pointer; }
+.task-open:focus-visible { outline: none; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.task-title { overflow-wrap: anywhere; }
+.task-note-mark { flex: none; width: 1rem; height: 1rem; color: var(--secondary); }
 .task-points { width: 100%; padding: 0 0.3rem; border: 0; border-radius: 6px; background: none; color: var(--text); font: inherit; text-align: right; font-variant-numeric: tabular-nums; }
 .task-points::placeholder { color: var(--secondary); }
 .task-points:hover:not(:disabled), .task-points:focus { background: var(--fill); outline: none; }
 .task-status {
-  appearance: none; margin-top: 0.1rem; padding: 0.1rem 1.4rem 0.1rem 0.6rem; border: 0; border-radius: 999px; font: inherit; font-size: 0.8rem; font-weight: 500;
+  appearance: none; padding: 0.1rem 1.4rem 0.1rem 0.6rem; border: 0; border-radius: 999px; font: inherit; font-size: 0.8rem; font-weight: 500;
   color: color-mix(in srgb, var(--status-color) 75%, var(--text)); background: color-mix(in srgb, var(--status-color) 20%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 6.5l3 3 3-3' fill='none' stroke='%238e8e93' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") right 0.35rem center / 0.8rem no-repeat;
 }
 .task-status option { background: var(--card); color: var(--text); }
 .task-status:disabled { opacity: 1; cursor: default; }
-.tracker-add { position: relative; display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.6rem 1rem 0.6rem 1.2rem; border: 0; background: none; color: var(--accent-text); text-align: left; }
-.tracker-add:hover { background: var(--hover); }
-.tracker-add .plus { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: var(--accent); color: #000; font-weight: 700; line-height: 1; }
-.add-group { width: auto; margin-bottom: 1.5rem; padding-left: 1rem; border-radius: 0.5rem; }
+.task-empty { margin: 0; padding: 0.75rem 1rem; color: var(--secondary); }
+.board-add { position: relative; display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.6rem 1rem; border: 0; background: none; color: var(--accent-text); text-align: left; }
+.board-add .plus { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: var(--accent); color: #000; font-weight: 700; line-height: 1; }
+.task-new { position: relative; display: block; width: 100%; padding: 0.6rem 1rem; border: 0; background: none; color: var(--text); font: inherit; outline: none; }
+.task-new::placeholder { color: var(--secondary); }
+
+.month-card { display: grid; gap: 0.4rem; margin-bottom: 1.25rem; padding: 0.75rem 1rem; border-radius: 10px; background: var(--note-card); }
+.month-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 0.75rem; }
+.month-goal { font-size: 0.85rem; color: var(--secondary); }
+.month-goal input { width: 3.5rem; padding: 0 0.3rem; border: 0; border-radius: 6px; background: var(--fill); color: var(--text); font: inherit; text-align: right; font-variant-numeric: tabular-nums; }
+.month-goal input::placeholder { color: var(--secondary); }
+.month-note, .month-summary { margin: 0; font-size: 0.85rem; color: var(--secondary); font-variant-numeric: tabular-nums; }
+.goal-bar { height: 6px; overflow: hidden; border-radius: 999px; background: var(--fill); }
+.goal-bar span { display: block; height: 100%; border-radius: inherit; background: var(--green); }
+
+.board-label { margin: 0 0 0.4rem 1rem; font-size: 0.8rem; font-weight: 400; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.02em; }
+.other-lists { margin-bottom: 1.5rem; }
+.nav-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.3rem 0.75rem; align-items: center; width: 100%; padding: 0.6rem 1rem; border: 0; background: none; text-align: left; }
+.nav-label { min-width: 0; overflow-wrap: anywhere; }
+.nav-detail { color: var(--secondary); font-size: 0.85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nav-row .goal-bar { grid-column: 1 / -1; height: 4px; }
+.phase { padding: 0 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; vertical-align: 0.1em; }
+.phase-active { background: var(--green); color: #fff; }
+.phase-planned { background: var(--fill); color: var(--secondary); }
+.month-section { margin-bottom: 1.25rem; }
+.month-section .month-head { padding-right: 0.25rem; }
+.month-section .board-label { margin-bottom: 0.4rem; }
+
+.board-nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: 0 0 1rem; }
+.board-nav > :last-child { justify-self: end; }
+.board-back { justify-self: start; max-width: 100%; overflow: hidden; font-size: 1rem; white-space: nowrap; text-overflow: ellipsis; }
+.board-nav-title { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.board[data-screen="task"] .form-card { margin: 0 0 1rem; }
+.board[data-screen="task"] .form-head { margin: 1.25rem 1rem 0.35rem; }
+.task-detail-title { width: 100%; padding: 0.7rem 1rem; border: 0; background: none; color: var(--text); font: inherit; font-weight: 600; outline: none; }
+.form-row .task-points { width: 6rem; }
+.task-list { max-width: 60%; padding: 0.2rem 0.4rem; border: 0; border-radius: 6px; background: none; color: var(--secondary); font: inherit; text-align: right; }
+.task-list option { background: var(--card); color: var(--text); }
+
+/* The note text belongs to a sprint screen; the other screens hide it. */
+.board[data-screen="all"] ~ .editor, .board[data-screen="task"] ~ .editor { display: none; }
+.board-notes-label { margin: 0 0 0.4rem; font-size: 1.05rem; font-weight: 700; }
 /* In the popup the status moves under the task so the title keeps most of the row. */
-@container (max-width: 520px) {
-  .task-row { grid-template-columns: 0.75rem 1.25rem minmax(0, 1fr) 3.25rem; row-gap: 0.3rem; }
-  .task-status { grid-column: 3; justify-self: start; margin-top: 0; }
+@container (max-width: 300px) {
+  .task-row { grid-template-columns: minmax(0, 1fr) 3.25rem; }
+  .task-row .task-status { grid-column: 1; justify-self: start; margin: 0 0 0.45rem 1rem; }
 }
-.tracker-notes-label { margin: 0 0 0.4rem; font-size: 1.05rem; font-weight: 700; }
 
 .format-menu { position: fixed; inset: auto; margin: 0; padding: 0.5rem; border: 1px solid var(--separator); border-radius: 0.8rem; background: var(--card); color: var(--text); box-shadow: 0 8px 30px rgb(0 0 0 / 0.25); }
 .style-option { display: block; width: 100%; padding: 0.35rem 0.75rem; border: 0; border-radius: 0.4rem; background: none; text-align: left; }
@@ -260,7 +297,10 @@ body:not(.viewing-deleted) #recover-button { display: none; }
 .form-row + .form-row::before { content: ""; position: absolute; top: 0; left: 1rem; right: 0; border-top: 0.5px solid var(--separator); }
 .form-row input[type="date"], .form-row input[type="number"] { min-width: 0; border: 0; background: none; color: var(--secondary); font: inherit; text-align: right; }
 .form-row input[type="number"] { width: 6rem; }
+label.form-row > input[type="text"] { flex: 1; min-width: 0; padding: 0.2rem 0.3rem; border: 0; border-radius: 6px; background: none; color: var(--text); font: inherit; text-align: right; }
+label.form-row > input[type="text"]:focus { background: var(--fill); outline: none; }
 .form-button { border: 0; background: none; color: var(--accent-text); text-align: left; }
+.form-button.menu-danger { color: var(--red); }
 .form-button:hover, .check-option:hover { background: var(--hover); }
 .check-option { display: flex; flex: 1; justify-content: space-between; align-items: center; align-self: stretch; margin: -0.35rem 0 -0.35rem -1rem; padding: 0 0.5rem 0 1rem; border: 0; background: none; text-align: left; }
 .check-mark { color: var(--accent); font-weight: 700; visibility: hidden; }

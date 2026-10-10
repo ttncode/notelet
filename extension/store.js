@@ -1,3 +1,4 @@
+import { mergeTrackers } from "./board-merge.js";
 import { defaultSettings, legacySections, normalizeSettings, upgradeNote } from "./sprint.js";
 
 const NOTE_PREFIX = "note:";
@@ -5,7 +6,7 @@ const SCHEMA_KEY = "schemaVersion";
 const UI_KEY = "ui";
 const SETTINGS_KEY = "settings";
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 export const DEFAULT_UI = Object.freeze({ sidebarWidth: 280, sidebarHidden: false, lastNoteId: null, scrollTop: 0, theme: "system" });
 
 export function createStore(area) {
@@ -25,10 +26,18 @@ async function load(area, today) {
   if (version > SCHEMA_VERSION) throw new Error("These notes were saved by a newer version of Notelet. Update the extension to open them.");
   const settings = stored[SETTINGS_KEY] ? normalizeSettings(stored[SETTINGS_KEY]) : defaultSettings();
   const storedNotes = Object.entries(stored).filter(([key]) => key.startsWith(NOTE_PREFIX)).map(([, note]) => note);
-  const upgradeSettings = { statuses: settings.statuses, sections: legacySections(stored[SETTINGS_KEY]) };
-  const notes = version < SCHEMA_VERSION ? storedNotes.map((note) => upgradeNote(note, upgradeSettings, today)) : storedNotes;
-  if (version < SCHEMA_VERSION) await saveMigration(area, settings, notes.filter((note, index) => note !== storedNotes[index]));
+  const notes = version < SCHEMA_VERSION ? upgradeNotes(storedNotes, { stored, settings, today }) : storedNotes;
+  if (version < SCHEMA_VERSION) await saveMigration(area, settings, notes.filter((note) => !storedNotes.includes(note)));
   return { notes, ui: { ...DEFAULT_UI, ...stored[UI_KEY] }, settings };
+}
+
+// Older notes become tracker notes first; schema 5 then folds every tracker into the Sprints note.
+function upgradeNotes(storedNotes, { stored, settings, today }) {
+  const upgradeSettings = { statuses: settings.statuses, sections: legacySections(stored[SETTINGS_KEY]) };
+  const upgraded = storedNotes.map((note) => upgradeNote(note, upgradeSettings, today));
+  const merged = new Map(mergeTrackers(upgraded, { counts: settings.sprintCounts, now: today.getTime() }).map((note) => [note.id, note]));
+  const replaced = upgraded.map((note) => merged.get(note.id) ?? note);
+  return [...replaced, ...[...merged.values()].filter((note) => !upgraded.some((existing) => existing.id === note.id))];
 }
 
 function saveMigration(area, settings, changedNotes) {

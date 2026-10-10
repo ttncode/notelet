@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   BACKLOG_ID, currentSprint, findTask, isValidBoard, monthProgress, monthsOf, moveOpenTasks, moveTask, newBoard, newSprint, removeSprint,
-  setMonthGoal, sprintDays, sprintName, sprintPhase, sprintProgress, boardSearchText,
+  pointsByStatus, setMonthGoal, sprintDays, sprintName, sprintPhase, sprintProgress, boardSearchText,
 } from "../extension/board.js";
 import { DEFAULT_STATUSES } from "../extension/sprint.js";
 
@@ -111,4 +111,18 @@ test("a damaged board is rejected", () => {
   assert.equal(isValidBoard({ ...EXAMPLE, monthGoals: { "2026-13": 10 } }), false);
   assert.equal(isValidBoard({ ...EXAMPLE, backlog: [{ ...task(1), note: null }] }), false);
   assert.equal(isValidBoard({ ...EXAMPLE, sprints: [sprint("2026-10-16", "2026-10-05")] }), false);
+});
+
+test("the chart adds up points by status; an unknown status counts as the first", () => {
+  const tasks = [task(2, "gone"), task(5, "s3"), task(null, "s3")];
+  const byStatus = Object.fromEntries(pointsByStatus(tasks, DEFAULT_STATUSES).map(({ status, points }) => [status.label, points]));
+  assert.deepEqual(byStatus, { Todo: 2, "In Progress": 0, "In Review": 5, "In QC": 0, Done: 0 });
+});
+
+test("sprint days count Monday to Friday only and stay within the sprint", () => {
+  const twoWeeks = sprint("2026-09-28", "2026-10-09");
+  const days = (month, day) => sprintDays(twoWeeks, new Date(2026, month - 1, day));
+  assert.deepEqual(days(10, 8), { days: 10, day: 9, left: 1 });
+  assert.deepEqual(days(9, 1), { days: 10, day: 0, left: 10 });
+  assert.deepEqual(days(12, 1), { days: 10, day: 10, left: 0 });
 });
