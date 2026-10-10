@@ -12,6 +12,7 @@ const SATURDAY = 6;
 const SUNDAY = 0;
 const HALF_YEAR_DAYS = 183;
 const DEFAULT_TARGET = 18;
+const DONE_STATUS_ID = "s5";
 const MAX_LABEL_LENGTH = 20;
 const STATUS_ID = /^[a-z0-9-]{1,24}$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -27,9 +28,23 @@ export const DEFAULT_STATUSES = Object.freeze([
   Object.freeze({ id: "s5", label: "Done", color: "#30d158" }),
 ]);
 
-export const defaultSettings = () => ({ statuses: DEFAULT_STATUSES.map((status) => ({ ...status })) });
+// sprintCounts and monthCounts are the status ids that count as done for a sprint and for a month.
+export function defaultSettings() {
+  const statuses = DEFAULT_STATUSES.map((status) => ({ ...status }));
+  return { statuses, sprintCounts: defaultCounts(statuses), monthCounts: defaultCounts(statuses) };
+}
 
-export const normalizeSettings = (settings) => ({ statuses: settings.statuses });
+// Done, or the last status when Done has been removed.
+const defaultCounts = (statuses) => [(statuses.find((status) => status.id === DONE_STATUS_ID) ?? statuses.at(-1)).id];
+
+export function normalizeSettings(settings) {
+  const { statuses } = settings;
+  const counts = (ids) => {
+    const known = Array.isArray(ids) ? ids.filter((id) => statuses.some((status) => status.id === id)) : [];
+    return known.length > 0 ? known : defaultCounts(statuses);
+  };
+  return { statuses, sprintCounts: counts(settings.sprintCounts), monthCounts: counts(settings.monthCounts) };
+}
 
 // Section labels and count flags were settings before each tracker had its own groups; they
 // are only needed to turn an older sprint note into groups.
@@ -63,7 +78,7 @@ export function isIsoDate(value) {
 
 const isWorkingDay = (iso) => ![SATURDAY, SUNDAY].includes(new Date(utcDay(iso)).getUTCDay());
 
-function workingDaysBetween(from, to) {
+export function workingDaysBetween(from, to) {
   let count = 0;
   for (let day = from; day <= to; day = addDays(day, 1)) if (isWorkingDay(day)) count += 1;
   return count;
@@ -77,7 +92,7 @@ function addWorkingDays(iso, count) {
   return day;
 }
 
-function sprintDatesFrom(day) {
+export function sprintDatesFrom(day) {
   const start = nextWorkingDay(day);
   return { start, end: addWorkingDays(start, SPRINT_WORKING_DAYS - 1) };
 }
@@ -186,7 +201,9 @@ const defaultDates = (today) => sprintDatesFrom(isoDate(today));
 
 export function sameSettings(first, second) {
   const sameStatus = (a, b) => a.id === b.id && a.label === b.label && a.color === b.color;
-  return first.statuses.length === second.statuses.length && first.statuses.every((status, index) => sameStatus(status, second.statuses[index]));
+  const sameIds = (a, b) => a.length === b.length && a.every((id, index) => id === b[index]);
+  return first.statuses.length === second.statuses.length && first.statuses.every((status, index) => sameStatus(status, second.statuses[index]))
+    && sameIds(first.sprintCounts, second.sprintCounts) && sameIds(first.monthCounts, second.monthCounts);
 }
 
 // settings: { statuses, sections } where sections are the legacy section labels and count flags.

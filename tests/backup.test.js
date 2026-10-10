@@ -14,7 +14,7 @@ const notes = [
 const backupWith = (overrides) => JSON.stringify({ app: "notelet", version: 2, exportedAt: NOW.toISOString(), settings: SETTINGS, notes, ...overrides });
 
 test("an export imports back to the same notes", () => {
-  assert.deepEqual(parseBackup(createBackup(notes, SETTINGS, NOW)), { ok: true, version: 3, notes, settings: SETTINGS });
+  assert.deepEqual(parseBackup(createBackup(notes, SETTINGS, NOW)), { ok: true, version: 4, notes, settings: SETTINGS });
 });
 
 test("unknown note fields are dropped on import", () => {
@@ -32,7 +32,7 @@ test("JSON from another app is rejected", () => {
 });
 
 test("a backup from a newer version asks for an update", () => {
-  assert.match(parseBackup(backupWith({ version: 4 })).error, /newer version/);
+  assert.match(parseBackup(backupWith({ version: 5 })).error, /newer version/);
 });
 
 test("a backup without a notes list is rejected", () => {

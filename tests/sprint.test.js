@@ -3,7 +3,7 @@ import { DEFAULT_SECTIONS } from "../extension/sections.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  DEFAULT_STATUSES, addDays, isIsoDate, isValidSprint, isValidStatus, newSprint, parsePoints, sprintStats,
+  DEFAULT_STATUSES, addDays, defaultSettings, isIsoDate, isValidSprint, isValidStatus, newSprint, parsePoints, sprintStats,
   normalizeSettings, sameSettings, statusFor, upgradeNote, validateSprintSettings,
 } from "../extension/sprint.js";
 
@@ -102,10 +102,19 @@ test("stored sprints and statuses are checked field by field", () => {
 });
 
 test("settings with the same statuses are the same whatever the key order", () => {
-  const reordered = { statuses: DEFAULT_STATUSES.map(({ id, label, color }) => ({ color, id, label })) };
-  assert.equal(sameSettings({ statuses: DEFAULT_STATUSES }, reordered), true);
-  assert.equal(sameSettings({ statuses: DEFAULT_STATUSES }, { statuses: DEFAULT_STATUSES.slice(1) }), false);
-  assert.equal(sameSettings({ statuses: DEFAULT_STATUSES }, { statuses: [{ ...DEFAULT_STATUSES[0], color: "#000000" }, ...DEFAULT_STATUSES.slice(1)] }), false);
+  const settingsOf = (statuses) => normalizeSettings({ statuses });
+  const reordered = settingsOf(DEFAULT_STATUSES.map(({ id, label, color }) => ({ color, id, label })));
+  assert.equal(sameSettings(settingsOf(DEFAULT_STATUSES), reordered), true);
+  assert.equal(sameSettings(settingsOf(DEFAULT_STATUSES), settingsOf(DEFAULT_STATUSES.slice(1))), false);
+  assert.equal(sameSettings(settingsOf(DEFAULT_STATUSES), settingsOf([{ ...DEFAULT_STATUSES[0], color: "#000000" }, ...DEFAULT_STATUSES.slice(1)])), false);
+  assert.equal(sameSettings(settingsOf(DEFAULT_STATUSES), { ...settingsOf(DEFAULT_STATUSES), monthCounts: ["s4", "s5"] }), false);
+});
+
+test("counted statuses default to Done and drop statuses that no longer exist", () => {
+  assert.deepEqual(defaultSettings().sprintCounts, ["s5"]);
+  assert.deepEqual(defaultSettings().monthCounts, ["s5"]);
+  const settings = normalizeSettings({ statuses: DEFAULT_STATUSES.slice(0, 4), sprintCounts: ["s4", "s5"], monthCounts: ["s5"] });
+  assert.deepEqual([settings.sprintCounts, settings.monthCounts], [["s4"], ["s4"]]);
 });
 
 test("a first sprint created on a weekend starts the following Monday", () => {
