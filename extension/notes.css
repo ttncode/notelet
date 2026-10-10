@@ -246,6 +246,10 @@ body:not(.viewing-deleted) #recover-button { display: none; }
 .board[data-screen="task"] .form-head { margin: 1.25rem 1rem 0.35rem; }
 .task-detail-title { width: 100%; padding: 0.7rem 1rem; border: 0; background: none; color: var(--text); font: inherit; font-weight: 600; outline: none; }
 .form-row .task-points { width: 6rem; }
+.task-note-card { padding: 0.75rem 1rem; }
+.editor.task-note { min-height: 10rem; }
+/* Until a task opens, its editor waits outside the board, out of sight. */
+.editor-scroll > .task-note { display: none; }
 .task-list { max-width: 60%; padding: 0.2rem 0.4rem; border: 0; border-radius: 6px; background: none; color: var(--secondary); font: inherit; text-align: right; }
 .task-list option { background: var(--card); color: var(--text); }
 

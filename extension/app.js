@@ -1,13 +1,13 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
 import { closeOnOutsideClick, downloadFile, openHelp, pickTextFile, showToast } from "./dialogs.js";
 import { mergeTrackers, newBoardNote } from "./board-merge.js";
-import { boardSearchText, findSprint, removeSprint, updateSprint } from "./board.js";
+import { boardSearchText, findSprint, mapTasks, removeSprint, updateSprint } from "./board.js";
 import { createBoardView } from "./board-view.js";
 import { NoteEditor } from "./editor.js";
 import { formatEditedDate } from "./format.js";
 import { applyShortcutTitles, matchHotkey } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
-import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
+import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isEmptyNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, remoteNotesToApply, stepNote } from "./model.js";
 import { legacySections, normalizeSettings, sameSettings, upgradeNote } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
 import { sanitizeHtml } from "./sanitize.js";
@@ -37,6 +37,7 @@ const notes = new Map();
 const saves = createSaveScheduler({ delayMs: SAVE_DELAY_MS, maxWaitMs: SAVE_MAX_WAIT_MS, save: saveNow });
 const state = { currentId: null, mode: "notes", query: "", ui: null, settings: null };
 let editor;
+let taskEditor;
 let layout;
 let boardView;
 let uiSaveTimer = null;
@@ -56,7 +57,9 @@ async function main() {
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
   layout = setupLayout({ resizer: byId("resizer"), ui: state.ui, onUiChange: saveUiSoon });
-  boardView = createBoardView({ container: byId("board"), isMac: IS_MAC, onChange: onBoardChange, onSettings: openSettings });
+  const taskNote = byId("task-note");
+  taskEditor = new NoteEditor({ element: taskNote, isMac: IS_MAC, onChange: onTaskNoteChange });
+  boardView = createBoardView({ container: byId("board"), noteElement: taskNote, isMac: IS_MAC, onChange: onBoardChange, onSettings: openSettings, onOpenTask: loadTaskNote });
   applyShortcutTitles(document, IS_MAC);
   wireControls();
   store.onChange(applyRemoteChanges);
@@ -217,6 +220,19 @@ function onBoardChange(board) {
   byId("note-date").textContent = formatEditedDate(updated.updatedAt);
 }
 
+function loadTaskNote(task) {
+  taskEditor.load(task.note || EMPTY_BODY_HTML, { emptyHtml: EMPTY_BODY_HTML });
+  taskEditor.setReadOnly(state.mode !== "notes");
+}
+
+function onTaskNoteChange(html) {
+  const taskId = boardView.openTaskId();
+  if (taskId) boardView.setTaskNote(taskId, isEmptyNote(html) ? "" : html);
+}
+
+// The formatting buttons and menu work on whichever text is on screen: a task's note or the note's own.
+const activeEditor = () => (boardView.openTaskId() ? taskEditor : editor);
+
 function openSettings() {
   const note = notes.get(state.currentId);
   if (!note?.board) return;
@@ -368,7 +384,7 @@ async function importNotes() {
   await adoptImportedSettings(result.settings);
   const today = new Date();
   const upgradeSettings = { statuses: state.settings.statuses, sections: legacySections(result.settings) };
-  const imported = result.notes.map((note) => upgradeNote({ ...note, html: sanitizeHtml(note.html) }, upgradeSettings, today));
+  const imported = result.notes.map((note) => upgradeNote(sanitizeNote(note), upgradeSettings, today));
   await store.saveNotes(imported);
   imported.forEach((note) => {
     saves.cancel(note.id);
@@ -376,6 +392,11 @@ async function importNotes() {
   });
   refreshAfterOutsideChange([...imported.map((note) => note.id), ...absorbTrackers()]);
   showToast(`Imported ${imported.length} ${imported.length === 1 ? "note" : "notes"}.`);
+}
+
+function sanitizeNote(note) {
+  const sanitized = { ...note, html: sanitizeHtml(note.html) };
+  return note.board ? { ...sanitized, board: mapTasks(note.board, (task) => ({ ...task, note: task.note && sanitizeHtml(task.note) })) } : sanitized;
 }
 
 async function adoptImportedSettings(settings) {
@@ -440,7 +461,7 @@ function wireEditorActions() {
   for (const button of document.querySelectorAll("[data-action]")) {
     button.addEventListener("mousedown", (event) => event.preventDefault());
     button.addEventListener("click", () => {
-      editor.run(button.dataset.action);
+      activeEditor().run(button.dataset.action);
       if (menu.matches(":popover-open")) menu.hidePopover();
     });
   }
@@ -666,7 +687,7 @@ function focusNoteList() {
 function focusEditor() {
   if (!notes.has(state.currentId)) return;
   layout.showEditor();
-  editor.focus();
+  activeEditor().focus();
 }
 
 function positionFormatMenu(event) {

@@ -55,6 +55,8 @@ function mapTaskLists(board, change) {
   return { ...board, backlog: change(board.backlog, BACKLOG_ID), sprints: board.sprints.map((sprint) => ({ ...sprint, tasks: change(sprint.tasks, sprint.id) })) };
 }
 
+export const mapTasks = (board, change) => mapTaskLists(board, (tasks) => tasks.map(change));
+
 export function findTask(board, taskId) {
   for (const listId of listIds(board)) {
     const tasks = tasksOf(board, listId);

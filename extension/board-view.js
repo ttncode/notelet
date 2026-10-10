@@ -17,8 +17,10 @@ const NOTE_ICON = '<svg class="icon task-note-mark" viewBox="0 0 24 24" aria-lab
 // The Sprints note in three screens: a sprint (or the backlog), all sprints by month, and one
 // task. The DOM is rebuilt from note.board; typing in the task title updates the data without a
 // rebuild so the caret stays put, and every rebuild puts focus back on the control with the same
-// data-key. The screen is per tab and starts on the current sprint.
-export function createBoardView({ container, isMac, onChange, onSettings }) {
+// data-key. The screen is per tab and starts on the current sprint. noteElement is the task
+// note's editor; it is moved into the task screen rather than rebuilt, so it keeps its undo
+// history and caret, and onOpenTask loads it when a task opens.
+export function createBoardView({ container, noteElement, isMac, onChange, onSettings, onOpenTask }) {
   let context = null;
   let view = { screen: "list", listId: null, taskId: null, adding: false };
   const render = (next = context, { focus = activeKey(container) } = {}) => {
@@ -27,7 +29,7 @@ export function createBoardView({ container, isMac, onChange, onSettings }) {
     if (next === null) return container.replaceChildren();
     view = resolveView(next, view);
     container.dataset.screen = view.screen;
-    container.replaceChildren(...buildScreen(next, view));
+    container.replaceChildren(...buildScreen(next, view, noteElement));
     applyShortcutTitles(container, isMac);
     restoreFocus(container, focus);
   };
@@ -39,7 +41,9 @@ export function createBoardView({ container, isMac, onChange, onSettings }) {
     if (focus !== null) render(context, { focus });
   };
   const go = (next, focus = "") => {
+    const opensTask = next.screen === "task" && next.taskId !== view.taskId;
     view = { ...view, adding: false, ...next };
+    if (opensTask) onOpenTask(findTask(context.board, view.taskId).task);
     render(context, { focus });
     container.closest(".editor-scroll")?.scrollTo({ top: 0 });
   };
@@ -56,6 +60,9 @@ export function createBoardView({ container, isMac, onChange, onSettings }) {
     isEditing: () => container.contains(document.activeElement),
     screen: () => view.screen,
     viewedSprintId: () => (view.screen === "list" && view.listId !== BACKLOG_ID ? view.listId : null),
+    openTaskId: () => (view.screen === "task" ? view.taskId : null),
+    // A note edit saves without a rebuild, which would move the caret.
+    setTaskNote: (taskId, note) => change((board) => updateTask(board, { taskId, change: { note } })),
     showAllSprints: () => go({ screen: "all", taskId: null }),
     showSprint: (sprintId) => go({ screen: "list", listId: sprintId, taskId: null }),
   };
@@ -67,9 +74,9 @@ function resolveView({ board, today }, view) {
   return { ...view, listId };
 }
 
-function buildScreen(context, view) {
+function buildScreen(context, view, noteElement) {
   if (view.screen === "all") return allSprintsScreen(context);
-  if (view.screen === "task") return taskScreen(context, findTask(context.board, view.taskId));
+  if (view.screen === "task") return taskScreen({ ...context, noteElement }, findTask(context.board, view.taskId));
   return listScreen(context, view);
 }
 
@@ -332,7 +339,7 @@ function sprintRow({ sprint, settings, today }) {
   return row;
 }
 
-function taskScreen({ board, settings, editable }, { listId, task }) {
+function taskScreen({ board, settings, editable, noteElement }, { listId, task }) {
   const bar = navBar({ title: "Task", back: `‹ ${listName(board, listId)}` });
   const titleCard = createElement("div", "form-card");
   titleCard.append(titleField({ task, editable }));
@@ -344,7 +351,9 @@ function taskScreen({ board, settings, editable }, { listId, task }) {
   );
   const remove = createElement("div", "form-card");
   if (editable) remove.append(button({ className: "form-row form-button menu-danger", action: "delete-task", text: "Delete Task" }));
-  return [bar, titleCard, fields, createElement("h3", "form-head", "Note"), ...(editable ? [remove] : [])];
+  const note = createElement("div", "form-card task-note-card");
+  note.append(noteElement);
+  return [bar, titleCard, fields, createElement("h3", "form-head", "Note"), note, ...(editable ? [remove] : [])];
 }
 
 function titleField({ task, editable }) {
@@ -491,7 +500,8 @@ function onKeydown(event, handlers) {
     event.target.blur();
     return;
   }
-  if (event.key === "Escape" && handlers.view().screen !== "list") {
+  // An open menu takes Esc for itself.
+  if (event.key === "Escape" && handlers.view().screen !== "list" && !document.querySelector(":popover-open")) {
     event.preventDefault();
     handlers.back();
   }
