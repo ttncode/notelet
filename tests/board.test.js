@@ -59,6 +59,16 @@ test("a new sprint starts the working day after the latest one and keeps its goa
   assert.deepEqual({ start: first.start, end: first.end, goal: first.goal }, { start: "2026-10-12", end: "2026-10-23", goal: 18 });
 });
 
+test("a new sprint ends on the Friday of its last week", () => {
+  const dates = (sprints, day, weeks) => {
+    const { start, end } = newSprint({ ...newBoard(), sprints }, new Date(2026, 9, day), weeks);
+    return [start, end];
+  };
+  assert.deepEqual(dates([], 14, 1), ["2026-10-14", "2026-10-16"]);
+  assert.deepEqual(dates([], 12, 3), ["2026-10-12", "2026-10-30"]);
+  assert.deepEqual(dates([sprint("2026-10-05", "2026-10-14")], 10, 2), ["2026-10-15", "2026-10-23"]);
+});
+
 test("a sprint without a name is named after its dates", () => {
   assert.equal(sprintName(sprint("2026-10-05", "2026-10-16")), "Sprint (05/10 – 16/10)");
   assert.equal(sprintName(sprint("2026-10-05", "2026-10-16", [], { name: "Release 2" })), "Release 2");

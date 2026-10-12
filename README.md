@@ -109,9 +109,9 @@ Press `Alt+S` (or the compose button → **Sprints**) to open the Sprints note. 
 | A task | Click it to change its title, points, status or sprint, write a note with the usual text styles and checklists, or delete it. |
 | Moving tasks | Drag to reorder, or drop on another sprint or the Backlog under **Other Lists**. Alt+↑ / Alt+↓ moves the focused task. |
 | Month card | Adds up the sprints that end in that month. The goal is their goals added up, unless you type your own; clear it to go back to the sum. |
-| ⚙ Settings | The sprint's name, dates and goal; which statuses count as done for sprints and for months (Done by default); the status list; delete a sprint (its tasks go to the Backlog). |
+| ⚙ Settings | The sprint's name, dates and goal; how long new sprints run (1–4 weeks, 2 by default); which statuses count as done for sprints and for months (Done by default); the status list; delete a sprint (its tasks go to the Backlog). |
 
-**All Sprints** lists every sprint by month with each month's progress, and **+ New Sprint** starts one the working day after the latest ends: ten working days, the same goal. When a sprint has ended with open tasks, one button moves them to the next sprint or the Backlog. Anything else goes in **Notes** under the sprint, as ordinary note text.
+**All Sprints** lists every sprint by month with each month's progress, and **+ New Sprint** starts one the working day after the latest ends and runs to the Friday of its last week, with the same goal. When a sprint has ended with open tasks, one button moves them to the next sprint or the Backlog. Anything else goes in **Notes** under the sprint, as ordinary note text.
 
 Task tracking notes from earlier versions are merged into the Sprints note automatically: each becomes a sprint, ticked tasks count as Done, Last Sprint tasks not already on the board go to the Backlog, and any text of their own stays as a normal note under the old title.
 
