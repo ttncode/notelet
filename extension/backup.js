@@ -1,7 +1,7 @@
 import { isValidBoard, pickBoard } from "./board.js";
 import { normalizeCustomKeys } from "./hotkeys.js";
 import { isValidSections } from "./sections.js";
-import { isValidSprint, isValidStatus } from "./sprint.js";
+import { isSprintWeeks, isValidSprint, isValidStatus } from "./sprint.js";
 import { pickGroups } from "./tracker.js";
 
 export const BACKUP_APP = "notelet";
@@ -50,12 +50,13 @@ function isValidSettings(settings) {
 
 const isValidCounts = (ids) => ids === undefined || (Array.isArray(ids) && ids.every((id) => typeof id === "string"));
 
-function pickSettings({ statuses, sections, sprintCounts, monthCounts, hotkeys }) {
+function pickSettings({ statuses, sections, sprintCounts, monthCounts, sprintWeeks, hotkeys }) {
   return {
     statuses: statuses.map(pickStatusFields),
     ...(sections === undefined ? {} : { sections: sections.map(({ id, label, counts }) => ({ id, label, counts })) }),
     ...(sprintCounts === undefined ? {} : { sprintCounts: [...sprintCounts] }),
     ...(monthCounts === undefined ? {} : { monthCounts: [...monthCounts] }),
+    ...(isSprintWeeks(sprintWeeks) ? { sprintWeeks } : {}),
     ...(hotkeys === undefined ? {} : { hotkeys: normalizeCustomKeys(hotkeys) }),
   };
 }

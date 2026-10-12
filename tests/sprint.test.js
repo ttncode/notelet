@@ -60,6 +60,14 @@ test("settings with the same statuses are the same whatever the key order", () =
   assert.equal(sameSettings(settingsOf(DEFAULT_STATUSES), settingsOf(DEFAULT_STATUSES.slice(1))), false);
   assert.equal(sameSettings(settingsOf(DEFAULT_STATUSES), settingsOf([{ ...DEFAULT_STATUSES[0], color: "#000000" }, ...DEFAULT_STATUSES.slice(1)])), false);
   assert.equal(sameSettings(settingsOf(DEFAULT_STATUSES), { ...settingsOf(DEFAULT_STATUSES), monthCounts: ["s4", "s5"] }), false);
+  assert.equal(sameSettings(settingsOf(DEFAULT_STATUSES), { ...settingsOf(DEFAULT_STATUSES), sprintWeeks: 3 }), false);
+});
+
+test("sprints last two weeks unless one to four whole weeks are set", () => {
+  const weeks = (sprintWeeks) => normalizeSettings({ statuses: DEFAULT_STATUSES, sprintWeeks }).sprintWeeks;
+  assert.equal(defaultSettings().sprintWeeks, 2);
+  assert.deepEqual([weeks(1), weeks(4)], [1, 4]);
+  assert.deepEqual([weeks(undefined), weeks(0), weeks(5), weeks(1.5), weeks("3")], [2, 2, 2, 2, 2]);
 });
 
 test("counted statuses default to Done and drop statuses that no longer exist", () => {

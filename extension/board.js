@@ -28,9 +28,9 @@ export const listName = (board, listId) => (listId === BACKLOG_ID ? "Backlog" : 
 export const sprintsByDate = (board) => board.sprints.toSorted((a, b) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start));
 
 // The next sprint starts the working day after the latest one ends and keeps its goal.
-export function newSprint(board, today) {
+export function newSprint(board, today, weeks) {
   const [latest] = sprintsByDate(board);
-  const dates = sprintDatesFrom(latest ? addDays(latest.end, 1) : isoDate(today));
+  const dates = sprintDatesFrom(latest ? addDays(latest.end, 1) : isoDate(today), weeks);
   return { id: crypto.randomUUID(), name: "", ...dates, goal: latest?.goal ?? DEFAULT_GOAL, tasks: [] };
 }
 

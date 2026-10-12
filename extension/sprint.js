@@ -8,7 +8,10 @@ import { isValidGroups } from "./tracker.js";
 const DAY_MS = 86_400_000;
 const TICKET_SELECTOR = "ul.checklist > li";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const SPRINT_WORKING_DAYS = 10;
+const LEGACY_SPRINT_WORKING_DAYS = 10;
+const DEFAULT_SPRINT_WEEKS = 2;
+const MAX_SPRINT_WEEKS = 4;
+const FRIDAY = 5;
 const SATURDAY = 6;
 const SUNDAY = 0;
 const HALF_YEAR_DAYS = 183;
@@ -29,10 +32,10 @@ export const DEFAULT_STATUSES = Object.freeze([
 ]);
 
 // sprintCounts and monthCounts are the status ids that count as done for a sprint and for a month;
-// hotkeys holds the shortcuts the user changed.
+// sprintWeeks is how long a new sprint runs; hotkeys holds the shortcuts the user changed.
 export function defaultSettings() {
   const statuses = DEFAULT_STATUSES.map((status) => ({ ...status }));
-  return { statuses, sprintCounts: defaultCounts(statuses), monthCounts: defaultCounts(statuses), hotkeys: {} };
+  return { statuses, sprintCounts: defaultCounts(statuses), monthCounts: defaultCounts(statuses), sprintWeeks: DEFAULT_SPRINT_WEEKS, hotkeys: {} };
 }
 
 // Done, or the last status when Done has been removed.
@@ -44,11 +47,14 @@ export function normalizeSettings(settings) {
     const known = Array.isArray(ids) ? ids.filter((id) => statuses.some((status) => status.id === id)) : [];
     return known.length > 0 ? known : defaultCounts(statuses);
   };
-  return { statuses, sprintCounts: counts(settings.sprintCounts), monthCounts: counts(settings.monthCounts), hotkeys: normalizeCustomKeys(settings.hotkeys) };
+  const sprintWeeks = isSprintWeeks(settings.sprintWeeks) ? settings.sprintWeeks : DEFAULT_SPRINT_WEEKS;
+  return { statuses, sprintCounts: counts(settings.sprintCounts), monthCounts: counts(settings.monthCounts), sprintWeeks, hotkeys: normalizeCustomKeys(settings.hotkeys) };
 }
 
 // Section labels and count flags were settings before each tracker had its own groups; they
 // are only needed to turn an older sprint note into groups.
+export const isSprintWeeks = (weeks) => Number.isInteger(weeks) && weeks >= 1 && weeks <= MAX_SPRINT_WEEKS;
+
 export const legacySections = (settings) => (isValidSections(settings?.sections) ? settings.sections : defaultSections());
 
 export const statusFor = (statuses, id) => statuses.find((status) => status.id === id) ?? statuses[0];
@@ -93,9 +99,11 @@ function addWorkingDays(iso, count) {
   return day;
 }
 
-export function sprintDatesFrom(day) {
+// Starts on the first working day from day and ends on the Friday of its last week, so a sprint
+// started mid-week is shorter rather than ending mid-week.
+export function sprintDatesFrom(day, weeks = DEFAULT_SPRINT_WEEKS) {
   const start = nextWorkingDay(day);
-  return { start, end: addWorkingDays(start, SPRINT_WORKING_DAYS - 1) };
+  return { start, end: addDays(start, FRIDAY - new Date(utcDay(start)).getUTCDay() + 7 * (weeks - 1)) };
 }
 
 
@@ -171,7 +179,11 @@ function toIso(year, month, day) {
   return isIsoDate(iso) ? iso : null;
 }
 
-const defaultDates = (today) => sprintDatesFrom(isoDate(today));
+// Older notes migrate to ten working days, as they always have.
+function defaultDates(today) {
+  const start = nextWorkingDay(isoDate(today));
+  return { start, end: addWorkingDays(start, LEGACY_SPRINT_WORKING_DAYS - 1) };
+}
 
 
 const sortedEntries = (object) => Object.entries(object ?? {}).sort(([a], [b]) => a.localeCompare(b));
@@ -180,7 +192,7 @@ export function sameSettings(first, second) {
   const sameStatus = (a, b) => a.id === b.id && a.label === b.label && a.color === b.color;
   const sameIds = (a, b) => a.length === b.length && a.every((id, index) => id === b[index]);
   return first.statuses.length === second.statuses.length && first.statuses.every((status, index) => sameStatus(status, second.statuses[index]))
-    && sameIds(first.sprintCounts, second.sprintCounts) && sameIds(first.monthCounts, second.monthCounts)
+    && sameIds(first.sprintCounts, second.sprintCounts) && sameIds(first.monthCounts, second.monthCounts) && first.sprintWeeks === second.sprintWeeks
     && JSON.stringify(sortedEntries(first.hotkeys)) === JSON.stringify(sortedEntries(second.hotkeys));
 }
 

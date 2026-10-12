@@ -441,7 +441,7 @@ function onClick(event, handlers) {
     "all-sprints": () => forward({ screen: "all", taskId: null }),
     "new-sprint": () => {
       if (!editable) return;
-      const sprint = newSprint(board, today);
+      const sprint = newSprint(board, today, settings.sprintWeeks);
       change((current) => addSprint(current, sprint));
       forward({ screen: "list", listId: sprint.id, taskId: null });
     },

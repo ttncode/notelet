@@ -17,6 +17,7 @@ export function openSprintSettings({ dialog, sprint, settings, onSave, onDelete 
     field("month-counts").replaceChildren(...statuses.map((status) => countRow({ status, ids: counts.month, onToggle: renderCounts })));
   };
   fillSprintFields(field, sprint);
+  field("sprint-weeks").value = String(settings.sprintWeeks);
   fillStatuses(statusList, settings.statuses);
   renderCounts();
   field("sprint-error").textContent = "";
@@ -54,6 +55,7 @@ function submit(event, { field, statusList, counts, sprint, onSave }) {
     statuses,
     sprintCounts: kept(counts.sprint),
     monthCounts: kept(counts.month),
+    sprintWeeks: Number(field("sprint-weeks").value),
   };
   const error = validateSprintSettings(values);
   if (error) {
