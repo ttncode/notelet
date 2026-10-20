@@ -20,6 +20,19 @@ const DEFAULT_HOTKEYS = [
   { group: "Editing", action: "redo", label: "Redo", mod: true, shift: true, code: "KeyZ" },
   { group: "Editing", action: "redo", label: "Redo", mod: true, code: "KeyY" },
   { group: "Editing", action: "pastePlain", label: "Paste as plain text", mod: true, shift: true, code: "KeyV", native: true },
+  // VS Code's line keys.
+  { group: "Lines", action: "copyLine", label: "Copy line (nothing selected)", mod: true, code: "KeyC", native: true },
+  { group: "Lines", action: "cutLine", label: "Cut line (nothing selected)", mod: true, code: "KeyX", native: true },
+  { group: "Lines", action: "moveLineUp", label: "Move line up", alt: true, code: "ArrowUp" },
+  { group: "Lines", action: "moveLineDown", label: "Move line down", alt: true, code: "ArrowDown" },
+  // VS Code's Shift+Alt+arrow is Windows' keyboard-language switch, so this is VS Code's Linux key.
+  { group: "Lines", action: "duplicateLineUp", label: "Duplicate line up", mod: true, alt: true, shift: true, code: "ArrowUp" },
+  { group: "Lines", action: "duplicateLineDown", label: "Duplicate line down", mod: true, alt: true, shift: true, code: "ArrowDown" },
+  { group: "Lines", action: "insertLineBelow", label: "Insert line below", mod: true, code: "Enter" },
+  { group: "Lines", action: "insertLineAbove", label: "Insert line above", mod: true, shift: true, code: "Enter" },
+  { group: "Lines", action: "selectLine", label: "Select line, again to add the next", mod: true, code: "KeyL" },
+  { group: "Lines", action: "indentLine", label: "Indent line", mod: true, code: "BracketRight" },
+  { group: "Lines", action: "outdentLine", label: "Outdent line", mod: true, code: "BracketLeft" },
   // Chrome reserves Ctrl+N (new window).
   { group: "Notes", action: "newNote", label: "New note", alt: true, code: "KeyN" },
   { group: "Notes", action: "noteMenu", label: "Note menu", alt: true, code: "KeyO" },
