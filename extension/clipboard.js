@@ -3,24 +3,29 @@
 // so the text takes on the look of wherever it is pasted.
 const BLOCKS = new Set(["H1", "H2", "H3", "P", "PRE", "DIV"]);
 const LISTS = new Set(["UL", "OL"]);
+const STYLED_LINES = "h1, h2, h3, pre";
 const NESTED_INDENT = "    ";
 const HTML_MARKERS = { checked: "☑ ", unchecked: "☐ ", dashed: "– " };
 const TEXT_NODE = 3;
 const NBSP = "\u00a0";
 const TAB_SPACES = 4;
 
-// A selection across several items of one list clones only the items; wrap them back in
-// their list so the copy still knows which kind of list it was.
+// A selection across several items of one list clones only the items, and one inside a
+// heading or Monostyled line clones only its text; wrap them back in their list or line so
+// the copy still knows which kind it was.
 export function selectedContent(range) {
-  const container = document.createElement("div");
-  container.append(range.cloneContents());
   const common = range.commonAncestorContainer;
-  if (!LISTS.has(common.tagName)) return container;
-  const list = common.cloneNode(false);
-  list.append(...container.childNodes);
-  container.append(list);
+  const container = common.ownerDocument.createElement("div");
+  container.append(range.cloneContents());
+  const wrapper = LISTS.has(common.tagName) ? common : styledLineAround(common);
+  if (!wrapper) return container;
+  const shell = wrapper.cloneNode(false);
+  shell.append(...container.childNodes);
+  container.append(shell);
   return container;
 }
+
+const styledLineAround = (node) => (node.nodeType === TEXT_NODE ? node.parentElement : node).closest(STYLED_LINES);
 
 export function clipboardText(root) {
   return linesOf(root, "").join("\n");
