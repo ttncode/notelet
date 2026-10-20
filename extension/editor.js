@@ -2,6 +2,9 @@ import { clipboardHtml, clipboardText, selectedContent } from "./clipboard.js";
 import { History } from "./history.js";
 import { matchHotkey } from "./hotkeys.js";
 import {
+  ABOVE, BELOW, duplicateLine, indentText, insertLine, lineOf, moveLine, nextLine, outdentText, previousLine, removeLine,
+} from "./lines.js";
+import {
   checkboxForShortcut, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType,
 } from "./lists.js";
 import { EMPTY_NOTE_HTML } from "./model.js";
@@ -17,7 +20,14 @@ const HEADING_TAGS = new Set(["H1", "H2", "H3"]);
 const BLOCK_ACTIONS = { title: "h1", heading: "h2", subheading: "h3", body: "p", monostyled: "pre" };
 const INLINE_ACTIONS = { bold: "bold", italic: "italic", underline: "underline", strikethrough: "strikeThrough" };
 const LIST_ACTIONS = new Set(["bulleted", "dashed", "numbered", "checklist"]);
-const EDITOR_ACTIONS = new Set([...Object.keys(BLOCK_ACTIONS), ...Object.keys(INLINE_ACTIONS), ...LIST_ACTIONS, "toggleCheck", "undo", "redo"]);
+const LINE_DIRECTIONS = {
+  moveLineUp: ABOVE, moveLineDown: BELOW, duplicateLineUp: ABOVE, duplicateLineDown: BELOW, insertLineAbove: ABOVE, insertLineBelow: BELOW,
+};
+const INDENT_ACTIONS = { indentLine: "indent", outdentLine: "outdent" };
+const EDITOR_ACTIONS = new Set([
+  ...Object.keys(BLOCK_ACTIONS), ...Object.keys(INLINE_ACTIONS), ...LIST_ACTIONS, ...Object.keys(LINE_DIRECTIONS), ...Object.keys(INDENT_ACTIONS),
+  "toggleCheck", "selectLine", "undo", "redo",
+]);
 const PASTE_INPUT_TYPES = new Set(["insertFromPaste", "insertFromPasteAsQuotation", "insertFromDrop"]);
 const BURST_KINDS = new Set(["type", "delete"]);
 const CHECKLIST_ITEM = "ul.checklist > li";
@@ -101,6 +111,7 @@ export class NoteEditor {
     if (action === "undo") return this.#undo();
     if (action === "redo") return this.#redo();
     this.#restoreSelection();
+    if (action === "selectLine") return this.#selectLine();
     this.#checkpoint();
     this.#apply(action);
     this.#changed();
@@ -110,8 +121,57 @@ export class NoteEditor {
     if (Object.hasOwn(BLOCK_ACTIONS, action)) return this.#setBlock(BLOCK_ACTIONS[action]);
     if (Object.hasOwn(INLINE_ACTIONS, action)) return document.execCommand(INLINE_ACTIONS[action]);
     if (LIST_ACTIONS.has(action)) return this.#keepCaretInBlock(() => this.#toggleList(action));
+    if (Object.hasOwn(LINE_DIRECTIONS, action)) return this.#editLine(action, LINE_DIRECTIONS[action]);
+    if (Object.hasOwn(INDENT_ACTIONS, action)) return this.#indentLine(INDENT_ACTIONS[action]);
     if (action === "toggleCheck") return this.#toggleCheckAtCaret();
     throw new Error(`Unknown editor action: ${action}`);
+  }
+
+  #editLine(action, direction) {
+    const line = caretBlock(this.#element);
+    if (!line) return;
+    const offset = caretOffset(line);
+    if (action.startsWith("insertLine")) {
+      placeCaretAtStart(insertLine(line, direction));
+    } else if (action.startsWith("duplicateLine")) {
+      setCaretOffset(duplicateLine(line, direction), offset);
+    } else if (moveLine(line, direction)) {
+      setCaretOffset(line, offset);
+    }
+  }
+
+  // In a list this nests the item like Tab; elsewhere it adds or removes a leading tab.
+  #indentLine(command) {
+    if (caretElement(this.#element)?.closest("li")) {
+      document.execCommand(command);
+      this.#matchNestedListKind();
+      return;
+    }
+    const line = caretBlock(this.#element);
+    if (!line) return;
+    const offset = caretOffset(line);
+    if (command === "indent") {
+      indentText(line);
+      setCaretOffset(line, offset + 1);
+    } else if (outdentText(line)) {
+      setCaretOffset(line, Math.max(0, offset - 1));
+    }
+  }
+
+  // Like VS Code's Ctrl+L: the first press selects the caret's line, each next one adds a line.
+  #selectLine() {
+    const selection = document.getSelection();
+    if (!selection.rangeCount || !this.#element.contains(selection.anchorNode)) return;
+    const range = selection.getRangeAt(0);
+    const first = lineOf(this.#element, range.startContainer);
+    const last = lineOf(this.#element, range.endContainer);
+    if (!first || !last) return;
+    const end = !selection.isCollapsed && isRangeEndAtEndOf(range, last) ? nextLine(this.#element, last) ?? last : last;
+    const lines = document.createRange();
+    lines.setStart(first, 0);
+    lines.setEnd(end, end.childNodes.length);
+    selection.removeAllRanges();
+    selection.addRange(lines);
   }
 
   #listen() {
@@ -179,8 +239,7 @@ export class NoteEditor {
     event.preventDefault();
     this.#checkpoint();
     if (caretElement(this.#element)?.closest("li")) {
-      document.execCommand(event.shiftKey ? "outdent" : "indent");
-      this.#matchNestedListKind();
+      this.#indentLine(event.shiftKey ? "outdent" : "indent");
     } else if (!event.shiftKey) {
       document.execCommand("insertText", false, "\t");
     }
@@ -239,20 +298,44 @@ export class NoteEditor {
   }
 
   #onCopy(event) {
-    const selection = document.getSelection();
-    if (!selection.rangeCount || selection.isCollapsed || !this.#element.contains(selection.anchorNode)) return false;
-    const content = selectedContent(selection.getRangeAt(0));
+    const range = this.#rangeToCopy();
+    if (!range) return false;
+    const content = selectedContent(range);
     event.clipboardData.setData("text/plain", clipboardText(content));
     event.clipboardData.setData("text/html", clipboardHtml(content));
     event.preventDefault();
     return true;
   }
 
+  // With nothing selected, copy and cut take the caret's whole line, as in VS Code.
+  #rangeToCopy() {
+    const selection = document.getSelection();
+    if (!selection.rangeCount || !this.#element.contains(selection.anchorNode)) return null;
+    if (!selection.isCollapsed) return selection.getRangeAt(0);
+    const line = caretBlock(this.#element);
+    if (!line) return null;
+    const range = document.createRange();
+    range.selectNode(line);
+    return range;
+  }
+
   // execCommand fires no beforeinput, so the cut needs its own undo step.
   #onCut(event) {
     if (!this.#onCopy(event) || !this.#element.isContentEditable) return;
     this.#checkpoint();
-    document.execCommand("delete");
+    if (document.getSelection().isCollapsed) this.#removeCaretLine();
+    else document.execCommand("delete");
+  }
+
+  #removeCaretLine() {
+    const line = caretBlock(this.#element);
+    const after = nextLine(this.#element, line);
+    const before = previousLine(this.#element, line);
+    removeLine(line);
+    if (after) placeCaretAtStart(after);
+    else if (before) placeCaretAtEnd(before);
+    this.#ensureContent();
+    this.#changed();
   }
 
   #onClick(event) {
@@ -428,6 +511,13 @@ function unwrapStyledSpans(list) {
 
 function toggleChecked(item) {
   item.setAttribute("data-checked", item.getAttribute("data-checked") === "true" ? "false" : "true");
+}
+
+function isRangeEndAtEndOf(range, element) {
+  const rest = document.createRange();
+  rest.selectNodeContents(element);
+  rest.setStart(range.endContainer, range.endOffset);
+  return rest.toString() === "";
 }
 
 function topBlockAtCaret(root) {

@@ -127,6 +127,7 @@ Press `Ctrl+/` (`⌘/` on Mac) for the full list, grouped by topic. Every button
 | Go to the notes list / the note | `Alt+1` / `Alt+3` | `⌥1` / `⌥3` |
 | Text styles menu | `Alt+A` | `⌥A` |
 | Checklist | `Ctrl+Shift+L` | `⇧⌘L` |
+| Move line / duplicate line | `Alt+↑↓` / `Ctrl+Alt+Shift+↑↓` | `⌥↑↓` / `⌘⌥⇧↑↓` |
 | Back / Forward | mouse side buttons, `Alt+←` / `Alt+→` | mouse side buttons, `⌘[` / `⌘]` |
 | All shortcuts | `Ctrl+/` | `⌘/` |
 
