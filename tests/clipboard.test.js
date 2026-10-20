@@ -1,7 +1,7 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clipboardHtml, clipboardText } from "../extension/clipboard.js";
+import { clipboardHtml, clipboardText, selectedContent } from "../extension/clipboard.js";
 import { parseHtml } from "../extension/model.js";
 import { sanitizeHtml } from "../extension/sanitize.js";
 
@@ -61,4 +61,24 @@ test("HTML keeps line breaks, indents and tabs that other apps would collapse", 
   assert.equal(html, "<p>Cập nhật UI:<br>  - Thêm badge<br>  - Luôn hiển thị</p>");
   assert.equal(withNbsp(clipboardHtml(root("<p>a\tb  c</p>"))), "<p>a    b  c</p>");
   assert.equal(clipboardHtml(root("<pre>keep\n  as is</pre>")), "<pre>keep\n  as is</pre>");
+});
+
+// linkedom has no Range, so this one stands in for a selection inside one text node.
+function selectionInside(text) {
+  return {
+    commonAncestorContainer: text,
+    cloneContents: () => {
+      const fragment = text.ownerDocument.createDocumentFragment();
+      fragment.append(text.cloneNode());
+      return fragment;
+    },
+  };
+}
+
+test("text selected inside a heading or Monostyled line copies with its style", () => {
+  const body = root("<h2>Heading <b>bold</b></h2><pre>mono</pre><p>Body</p>");
+  assert.equal(selectedContent(selectionInside(body.querySelector("h2").firstChild)).innerHTML, "<h2>Heading </h2>");
+  assert.equal(selectedContent(selectionInside(body.querySelector("h2 b").firstChild)).innerHTML, "<h2>bold</h2>");
+  assert.equal(selectedContent(selectionInside(body.querySelector("pre").firstChild)).innerHTML, "<pre>mono</pre>");
+  assert.equal(selectedContent(selectionInside(body.querySelector("p").firstChild)).innerHTML, "Body");
 });
