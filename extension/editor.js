@@ -1,3 +1,4 @@
+import { nextCase, wordAt } from "./case.js";
 import { clipboardHtml, clipboardText, selectedContent } from "./clipboard.js";
 import { History } from "./history.js";
 import { matchHotkey } from "./hotkeys.js";
@@ -26,7 +27,7 @@ const LINE_DIRECTIONS = {
 const INDENT_ACTIONS = { indentLine: "indent", outdentLine: "outdent" };
 const EDITOR_ACTIONS = new Set([
   ...Object.keys(BLOCK_ACTIONS), ...Object.keys(INLINE_ACTIONS), ...LIST_ACTIONS, ...Object.keys(LINE_DIRECTIONS), ...Object.keys(INDENT_ACTIONS),
-  "toggleCheck", "selectLine", "undo", "redo",
+  "toggleCheck", "selectLine", "changeCase", "undo", "redo",
 ]);
 const PASTE_INPUT_TYPES = new Set(["insertFromPaste", "insertFromPasteAsQuotation", "insertFromDrop"]);
 const BURST_KINDS = new Set(["type", "delete"]);
@@ -124,6 +125,7 @@ export class NoteEditor {
     if (Object.hasOwn(LINE_DIRECTIONS, action)) return this.#editLine(action, LINE_DIRECTIONS[action]);
     if (Object.hasOwn(INDENT_ACTIONS, action)) return this.#indentLine(INDENT_ACTIONS[action]);
     if (action === "toggleCheck") return this.#toggleCheckAtCaret();
+    if (action === "changeCase") return this.#changeCase();
     throw new Error(`Unknown editor action: ${action}`);
   }
 
@@ -156,6 +158,41 @@ export class NoteEditor {
     } else if (outdentText(line)) {
       setCaretOffset(line, Math.max(0, offset - 1));
     }
+  }
+
+  // Changes the selected text, or the word at the caret, and keeps the selection or caret.
+  // shortcut: a word split by formatting (half bold) only changes its part at the caret; walk nodes if users ask.
+  #changeCase() {
+    const selection = document.getSelection();
+    if (!selection.rangeCount || !this.#element.contains(selection.anchorNode)) return;
+    const range = selection.getRangeAt(0).cloneRange();
+    let caretInWord = null;
+    if (selection.isCollapsed) {
+      const { startContainer: node, startOffset: offset } = range;
+      if (node.nodeType !== Node.TEXT_NODE) return;
+      const [start, end] = wordAt(node.data, offset);
+      range.setStart(node, start);
+      range.setEnd(node, end);
+      caretInWord = offset - start;
+    }
+    const pieces = splitSelectedText(range);
+    if (!pieces.length) return;
+    const change = nextCase(pieces.map((piece) => piece.data).join(""));
+    let before = "";
+    for (const piece of pieces) {
+      const original = piece.data;
+      piece.data = change(original, before);
+      before = [...original].at(-1);
+    }
+    if (caretInWord !== null) {
+      placeCaret(pieces[0], Math.min(caretInWord, pieces[0].length));
+      return;
+    }
+    const changed = document.createRange();
+    changed.setStart(pieces[0], 0);
+    changed.setEnd(pieces.at(-1), pieces.at(-1).length);
+    selection.removeAllRanges();
+    selection.addRange(changed);
   }
 
   // Like VS Code's Ctrl+L: the first press selects the caret's line, each next one adds a line.
@@ -511,6 +548,21 @@ function unwrapStyledSpans(list) {
 
 function toggleChecked(item) {
   item.setAttribute("data-checked", item.getAttribute("data-checked") === "true" ? "false" : "true");
+}
+
+// The text inside range, each part split off into its own text node so it can change alone.
+function splitSelectedText(range) {
+  const root = range.commonAncestorContainer;
+  const walker = document.createTreeWalker(root.nodeType === Node.TEXT_NODE ? root.parentNode : root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) if (range.intersectsNode(node)) nodes.push(node);
+  return nodes.flatMap((node) => {
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : node.length;
+    if (start >= end) return [];
+    if (end < node.length) node.splitText(end);
+    return [start > 0 ? node.splitText(start) : node];
+  });
 }
 
 function isRangeEndAtEndOf(range, element) {
