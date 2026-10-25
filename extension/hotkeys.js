@@ -19,6 +19,8 @@ const DEFAULT_HOTKEYS = [
   { group: "Editing", action: "undo", label: "Undo", mod: true, code: "KeyZ" },
   { group: "Editing", action: "redo", label: "Redo", mod: true, shift: true, code: "KeyZ" },
   { group: "Editing", action: "redo", label: "Redo", mod: true, code: "KeyY" },
+  // Word's key; nothing selected changes the word at the caret.
+  { group: "Editing", action: "changeCase", label: "Change case: lower, UPPER, Title", shift: true, code: "F3" },
   { group: "Editing", action: "pastePlain", label: "Paste as plain text", mod: true, shift: true, code: "KeyV", native: true },
   // VS Code's line keys.
   { group: "Lines", action: "copyLine", label: "Copy line (nothing selected)", mod: true, code: "KeyC", native: true },
@@ -110,10 +112,12 @@ export const isModifierOnly = (event) => MODIFIER_CODES.test(event.code);
 const CHROME_MOD_KEYS = new Set(["KeyN", "KeyT", "KeyW", "Tab", "PageUp", "PageDown", "KeyQ"]);
 const CHROME_MOD_SHIFT_KEYS = new Set(["KeyN", "KeyT", "KeyW", "Tab", "KeyQ", "Delete"]);
 const WINDOWS_ALT_KEYS = new Set(["KeyF", "KeyE", "F4", "Space", "Tab"]);
+// F1 to F12 type nothing, so they work without Ctrl or Alt.
+const FUNCTION_KEY = /^F\d+$/;
 
 export function reservedReason(combo, isMac) {
   const label = hotkeyLabel(combo, isMac);
-  if (!combo.mod && !combo.alt) return `Add ${isMac ? "⌘ or ⌥" : "Ctrl or Alt"}, so the key doesn't just type.`;
+  if (!combo.mod && !combo.alt && !FUNCTION_KEY.test(combo.code)) return `Add ${isMac ? "⌘ or ⌥" : "Ctrl or Alt"}, so the key doesn't just type.`;
   if (!isMac && combo.alt && combo.shift && !combo.mod) return "Alt+Shift switches the keyboard language on Windows.";
   if (combo.mod && !combo.alt && (combo.shift ? CHROME_MOD_SHIFT_KEYS : CHROME_MOD_KEYS).has(combo.code)) return `Chrome keeps ${label} for itself.`;
   if (!isMac && combo.alt && !combo.mod && !combo.shift && WINDOWS_ALT_KEYS.has(combo.code)) return `${label} is kept by Chrome or Windows.`;

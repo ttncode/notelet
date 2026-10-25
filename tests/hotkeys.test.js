@@ -116,6 +116,7 @@ test("keys the browser or Windows keep, and keys without Ctrl or Alt, are refuse
   assert.match(reservedReason(combo("KeyK", { alt: true, shift: true }), false), /keyboard language/);
   assert.match(reservedReason(combo("KeyF", { alt: true }), false), /Chrome or Windows/);
   assert.match(reservedReason(combo("KeyK", {}), false), /Ctrl or Alt/);
+  assert.equal(reservedReason(combo("F3", { shift: true }), false), null);
   assert.equal(reservedReason(combo("KeyK", { mod: true, alt: true }), false), null);
 });
 

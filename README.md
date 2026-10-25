@@ -128,6 +128,7 @@ Press `Ctrl+/` (`⌘/` on Mac) for the full list, grouped by topic. Every button
 | Text styles menu | `Alt+A` | `⌥A` |
 | Checklist | `Ctrl+Shift+L` | `⇧⌘L` |
 | Move line / duplicate line | `Alt+↑↓` / `Ctrl+Alt+Shift+↑↓` | `⌥↑↓` / `⌘⌥⇧↑↓` |
+| Change case: lower, UPPER, Title | `Shift+F3` | `⇧F3` |
 | Back / Forward | mouse side buttons, `Alt+←` / `Alt+→` | mouse side buttons, `⌘[` / `⌘]` |
 | All shortcuts | `Ctrl+/` | `⌘/` |
 
