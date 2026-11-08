@@ -1,0 +1,17 @@
+[package]
+name = "notelet"
+version = "0.7.0"
+description = "Lightweight notes with sprint tracking"
+edition = "2021"
+publish = false
+
+[lib]
+name = "notelet_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
