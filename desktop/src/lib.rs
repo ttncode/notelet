@@ -22,14 +22,15 @@ const FLUSH_TIMEOUT: Duration = Duration::from_secs(5);
 
 enum Pending {
     Quit,
-    Update(Box<Update>),
+    /// Downloaded already, so only the install runs after the page has saved.
+    Update(Box<Update>, Vec<u8>),
 }
 
 impl Pending {
     fn name(&self) -> &'static str {
         match self {
             Pending::Quit => "quit",
-            Pending::Update(_) => "update",
+            Pending::Update(..) => "update",
         }
     }
 }
@@ -167,10 +168,18 @@ fn request_after_flush(app: &AppHandle, pending: Pending) {
     });
 }
 
+/// `then` is the action the page saved for, or `"cancel"` when its save failed: the pending
+/// action is dropped and the window shown, so the unsaved text stays in front of the user.
 fn run_pending(app: &AppHandle, then: &str) {
     let state = app.state::<AppState>();
     let pending = {
         let Ok(mut slot) = state.pending.lock() else { return };
+        if then == "cancel" {
+            slot.take();
+            drop(slot);
+            show_main(app);
+            return;
+        }
         if slot.as_ref().map(Pending::name) != Some(then) {
             return;
         }
@@ -181,15 +190,12 @@ fn run_pending(app: &AppHandle, then: &str) {
             let _ = app.save_window_state(window_state_flags());
             app.exit(0);
         }
-        Some(Pending::Update(update)) => {
+        Some(Pending::Update(update, bytes)) => {
             let _ = app.save_window_state(window_state_flags());
-            let handle = app.clone();
-            tauri::async_runtime::spawn(async move {
-                match update.download_and_install(|_, _| {}, || {}).await {
-                    Ok(()) => handle.restart(),
-                    Err(error) => show_message(&handle, format!("Couldn't install the update: {error}")),
-                }
-            });
+            match update.install(bytes) {
+                Ok(()) => app.restart(),
+                Err(error) => show_message(app, format!("Couldn't install the update: {error}")),
+            }
         }
         None => {}
     }
@@ -206,7 +212,13 @@ async fn check_for_update(app: AppHandle, from_tray: bool) {
         Err(error) => Err(error),
     };
     match result {
-        Ok(Some(update)) => request_after_flush(&app, Pending::Update(Box::new(update))),
+        // Downloading first keeps the gap between the page's last save and the installer closing
+        // the app to the install alone.
+        Ok(Some(update)) => match update.download(|_, _| {}, || {}).await {
+            Ok(bytes) => request_after_flush(&app, Pending::Update(Box::new(update), bytes)),
+            Err(error) if from_tray => show_message(&app, format!("Couldn't download the update: {error}")),
+            Err(_) => {}
+        },
         Ok(None) if from_tray => show_message(&app, format!("Notelet {} is the latest version.", app.package_info().version)),
         Err(error) if from_tray => show_message(&app, format!("Couldn't check for updates: {error}")),
         _ => {}

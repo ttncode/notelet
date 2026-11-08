@@ -1,7 +1,7 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createFileArea, historyKey, recoveryMessage, toAccelerator } from "../extension/desktop.js";
+import { createFileArea, historyKey, recoveryMessage, toAccelerator, whenShown } from "../extension/desktop.js";
 import { DEFAULT_UI, SCHEMA_VERSION, createStore } from "../extension/store.js";
 import { defaultSettings } from "../extension/sprint.js";
 
@@ -110,4 +110,60 @@ test("historyKey maps Alt+Left and Alt+Right only", () => {
   assert.equal(historyKey(event("ArrowLeft", { altKey: true, shiftKey: true })), null);
   assert.equal(historyKey(event("ArrowLeft")), null);
   assert.equal(historyKey(event("ArrowUp", { altKey: true })), null);
+});
+
+test("historyKey leaves a key alone when a shortcut already handled it", () => {
+  const event = { code: "ArrowLeft", altKey: true, ctrlKey: false, shiftKey: false, metaKey: false, defaultPrevented: true };
+  assert.equal(historyKey(event), null);
+});
+
+function fakePage(visibilityState) {
+  const listeners = {};
+  const target = {
+    visibilityState,
+    addEventListener: (type, listener) => { (listeners[type] ??= []).push(listener); },
+    removeEventListener: (type, listener) => { listeners[type] = (listeners[type] ?? []).filter((other) => other !== listener); },
+  };
+  const fire = (type) => [...(listeners[type] ?? [])].forEach((listener) => listener());
+  return { target, fire, count: (type) => (listeners[type] ?? []).length };
+}
+
+test("whenShown runs at once on a visible page", () => {
+  const page = fakePage("visible");
+  let runs = 0;
+  whenShown(page.target, page.target, () => { runs += 1; });
+  assert.equal(runs, 1);
+});
+
+test("whenShown waits for a hidden page to be shown or focused, and runs once", () => {
+  const page = fakePage("hidden");
+  let runs = 0;
+  whenShown(page.target, page.target, () => { runs += 1; });
+  assert.equal(runs, 0);
+  page.fire("visibilitychange");
+  assert.equal(runs, 0);
+  page.target.visibilityState = "visible";
+  page.fire("visibilitychange");
+  page.fire("focus");
+  assert.equal(runs, 1);
+  assert.equal(page.count("visibilitychange") + page.count("focus"), 0);
+});
+
+test("whenShown also runs on focus alone", () => {
+  const page = fakePage("hidden");
+  let runs = 0;
+  whenShown(page.target, page.target, () => { runs += 1; });
+  page.fire("focus");
+  assert.equal(runs, 1);
+});
+
+test("isSaved is false after a failed write and true again after the next one succeeds", async () => {
+  const backend = fakeBackend();
+  const area = createFileArea(backend.invoke);
+  assert.equal(area.isSaved(), true);
+  backend.failOnce();
+  await area.set({ a: 1 }).catch(() => {});
+  assert.equal(area.isSaved(), false);
+  await area.set({ b: 2 });
+  assert.equal(area.isSaved(), true);
 });

@@ -16,6 +16,13 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Refuse to release without the updater public key
+        shell: bash
+        run: |
+          if grep -q SET_IN_RELEASE_SETUP desktop/tauri.conf.json; then
+            echo "::error::desktop/tauri.conf.json still has the placeholder updater pubkey; installs from this release could never update."
+            exit 1
+          fi
       - run: npm test
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2

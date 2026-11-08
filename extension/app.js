@@ -1,6 +1,6 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
 import { closeOnOutsideClick, pickTextFile, showToast } from "./dialogs.js";
-import { createFileArea, historyKey, recoveryMessage, toAccelerator } from "./desktop.js";
+import { createFileArea, historyKey, recoveryMessage, toAccelerator, whenShown } from "./desktop.js";
 import { mergeTrackers, newBoardNote } from "./board-merge.js";
 import { boardSearchText, findSprint, findTask, mapTasks, removeSprint, updateSprint } from "./board.js";
 import { createBoardView } from "./board-view.js";
@@ -70,7 +70,8 @@ main().catch((error) => {
 
 async function main() {
   listenForFlush();
-  addEventListener("keydown", onHistoryKey, { capture: true });
+  // Bubble phase, after onAppHotkey on document, so a user shortcut on Alt+← / Alt+→ wins.
+  addEventListener("keydown", onHistoryKey);
   appVersion = await tauri.app.getVersion();
   const loaded = await store.load();
   const recovery = await area.recovery();
@@ -81,7 +82,7 @@ async function main() {
   state.ui = loaded.ui;
   state.settings = loaded.settings;
   setCustomKeys(state.settings.hotkeys);
-  registerGlobalShortcut().catch(() => showToast(SHORTCUT_TAKEN_MESSAGE));
+  registerGlobalShortcut().catch(() => whenShown(document, window, () => showToast(SHORTCUT_TAKEN_MESSAGE)));
   showTheme(state.ui.theme);
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
@@ -94,7 +95,7 @@ async function main() {
   store.onChange(applyRemoteChanges);
   openInitialNote();
   steps = createNavigation({ readView, showView });
-  showStartupNotice(recovery, loaded.notes.length === 0);
+  whenShown(document, window, () => showStartupNotice(recovery, loaded.notes.length === 0));
 }
 
 const registerGlobalShortcut = () => tauri.core.invoke("set_global_shortcut", { accelerator: toAccelerator(globalCombo()) });
@@ -105,7 +106,10 @@ function listenForFlush() {
   tauri.event.listen("flush-request", async ({ payload }) => {
     clearTimeout(uiSaveTimer);
     await Promise.allSettled([saves.flush(), store.saveUi(state.ui)]);
-    await tauri.core.invoke("after_flush", { then: payload.then });
+    const saved = area.isSaved();
+    // A failed save cancels the quit or update, so the unsaved text stays on screen.
+    if (!saved) showToast(SAVE_FAILED_MESSAGE);
+    await tauri.core.invoke("after_flush", { then: saved ? payload.then : "cancel" });
   }).catch((error) => console.error("Notelet: could not listen for quit and update", error));
 }
 
