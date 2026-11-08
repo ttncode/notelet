@@ -1,12 +1,14 @@
 {
   "name": "notelet",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test tests/",
+    "tauri": "tauri"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
     "linkedom": "^0.18.13"
   }
 }

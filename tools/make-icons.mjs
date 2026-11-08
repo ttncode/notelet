@@ -13,6 +13,9 @@ const LINES = [
 ];
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const OUT_DIR = new URL("../extension/icons/", import.meta.url);
+// Source for `npx tauri icon`, which builds the desktop app's .ico and PNGs from it.
+const DESKTOP_SOURCE = new URL("../desktop/icons/source.png", import.meta.url);
+const DESKTOP_SOURCE_SIZE = 1024;
 
 function insideRoundedSquare(u, v) {
   const dx = Math.max(CORNER_RADIUS - u, u - (1 - CORNER_RADIUS), 0);
@@ -67,3 +70,5 @@ function encodePng(size) {
 
 mkdirSync(OUT_DIR, { recursive: true });
 for (const size of SIZES) writeFileSync(new URL(`icon-${size}.png`, OUT_DIR), encodePng(size));
+mkdirSync(new URL(".", DESKTOP_SOURCE), { recursive: true });
+writeFileSync(DESKTOP_SOURCE, encodePng(DESKTOP_SOURCE_SIZE));
