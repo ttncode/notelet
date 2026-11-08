@@ -38,7 +38,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "SET_IN_RELEASE_SETUP",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFDQ0NFREFENDUwODkwQ0QKUldUTmtBaEZyZTNNckRmUTl6UGpsYzJkMmdwaHFWZ2txdDFYZkQyWGFWNnFwY2ltT2t4MmdoUHYK",
       "endpoints": ["https://github.com/ttncode/notelet/releases/latest/download/latest.json"],
       "windows": {
         "installMode": "passive"
