@@ -55,7 +55,7 @@ const DEFAULT_HOTKEYS = [
   // Alt+E opens Chrome's menu on Windows.
   { group: "App", action: "export", label: "Export backup", alt: true, code: "KeyX" },
   { group: "App", action: "import", label: "Import backup", alt: true, code: "KeyI" },
-  { group: "App", action: "openFullPage", label: "Open full page (popup)", alt: true, code: "Enter" },
+  { group: "App", action: "openFullPage", label: "Maximize / restore window", alt: true, code: "Enter" },
   { group: "App", action: "help", label: "Show or hide this list", mod: true, code: "Slash" },
   // Registered with Windows, so it works while another app is in front.
   { group: "App", action: "showHide", label: "Show / hide Notelet (from any app)", mod: true, alt: true, code: "KeyN", global: true },

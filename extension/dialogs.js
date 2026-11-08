@@ -1,23 +1,30 @@
 
 const TOAST_DURATION_MS = 5000;
-const URL_REVOKE_DELAY_MS = 1000;
+const ACTION_TOAST_DURATION_MS = 15000;
 let toastTimer = null;
 
-export function showToast(message) {
+// action, when given, is { label, run }: one button that runs and closes the toast. Such a
+// toast stays longer, since it asks for a decision.
+export function showToast(message, action = null) {
   const toast = document.getElementById("toast");
   toast.textContent = message;
+  if (action) toast.append(" ", actionButton(toast, action));
   toast.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.hidden = true; }, TOAST_DURATION_MS);
+  toastTimer = setTimeout(() => { toast.hidden = true; }, action ? ACTION_TOAST_DURATION_MS : TOAST_DURATION_MS);
 }
 
-export function downloadFile(text, fileName) {
-  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), URL_REVOKE_DELAY_MS);
+function actionButton(toast, { label, run }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "text-button toast-action";
+  button.textContent = label;
+  button.addEventListener("click", () => {
+    clearTimeout(toastTimer);
+    toast.hidden = true;
+    run();
+  });
+  return button;
 }
 
 export function pickTextFile(accept) {

@@ -1,11 +1,12 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
-import { closeOnOutsideClick, downloadFile, pickTextFile, showToast } from "./dialogs.js";
+import { closeOnOutsideClick, pickTextFile, showToast } from "./dialogs.js";
+import { createFileArea, historyKey, recoveryMessage, toAccelerator } from "./desktop.js";
 import { mergeTrackers, newBoardNote } from "./board-merge.js";
 import { boardSearchText, findSprint, findTask, mapTasks, removeSprint, updateSprint } from "./board.js";
 import { createBoardView } from "./board-view.js";
 import { NoteEditor } from "./editor.js";
 import { formatEditedDate } from "./format.js";
-import { applyShortcutTitles, matchHotkey, setCustomKeys } from "./hotkeys.js";
+import { applyShortcutTitles, globalCombo, matchHotkey, setCustomKeys } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isEmptyNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, stepNote } from "./model.js";
 import { mergeNote } from "./merge.js";
@@ -24,11 +25,10 @@ const SAVE_MAX_WAIT_MS = 5000;
 const UI_SAVE_DELAY_MS = 300;
 const MENU_GAP_PX = 6;
 const VIEWPORT_MARGIN_PX = 8;
-const IS_POPUP = new URLSearchParams(location.search).get("view") === "popup";
-const FULL_PAGE_URL = chrome.runtime.getURL("notes.html");
 const IS_MAC = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platform);
 const NARROW = matchMedia("(max-width: 699px)");
 const MERGE_CONFLICT_MESSAGE = "This note was also edited in another window. A paragraph you both changed now appears in both versions; for anything else, this window's change was kept.";
+const SHORTCUT_TAKEN_MESSAGE = "That key is already used by another app, so Notelet kept the previous one.";
 const SAVE_FAILED_MESSAGE = "Couldn't save your last change. Your text is still here — keep this tab open and try again, or export a backup.";
 
 const THEME_ICONS = {
@@ -37,7 +37,9 @@ const THEME_ICONS = {
   dark: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
 };
 const byId = (id) => document.getElementById(id);
-const store = createStore(chrome.storage.local);
+const tauri = window.__TAURI__;
+const area = createFileArea(tauri.core.invoke);
+const store = createStore(area);
 const notes = new Map();
 // What storage last held for each note, as told by its change events: the base for merging
 // another window's save with edits this window has not saved yet.
@@ -59,6 +61,7 @@ const navigation = {
   replace: () => steps?.replace(),
 };
 let uiSaveTimer = null;
+let appVersion = "";
 
 main().catch((error) => {
   console.error("Notelet failed to start", error);
@@ -66,8 +69,11 @@ main().catch((error) => {
 });
 
 async function main() {
-  document.body.classList.toggle("popup-view", IS_POPUP);
+  listenForFlush();
+  addEventListener("keydown", onHistoryKey, { capture: true });
+  appVersion = await tauri.app.getVersion();
   const loaded = await store.load();
+  const recovery = await area.recovery();
   loaded.notes.forEach((note) => {
     notes.set(note.id, note);
     synced.set(note.id, note);
@@ -75,6 +81,7 @@ async function main() {
   state.ui = loaded.ui;
   state.settings = loaded.settings;
   setCustomKeys(state.settings.hotkeys);
+  registerGlobalShortcut().catch(() => showToast(SHORTCUT_TAKEN_MESSAGE));
   showTheme(state.ui.theme);
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
@@ -87,7 +94,43 @@ async function main() {
   store.onChange(applyRemoteChanges);
   openInitialNote();
   steps = createNavigation({ readView, showView });
+  showStartupNotice(recovery, loaded.notes.length === 0);
 }
+
+const registerGlobalShortcut = () => tauri.core.invoke("set_global_shortcut", { accelerator: toAccelerator(globalCombo()) });
+
+// shortcut: an edit typed under SAVE_DELAY_MS before Windows shuts down can be lost, since WebView2
+// is killed without a page event; fixing it needs a WM_QUERYENDSESSION hook in Rust.
+function listenForFlush() {
+  tauri.event.listen("flush-request", async ({ payload }) => {
+    clearTimeout(uiSaveTimer);
+    await Promise.allSettled([saves.flush(), store.saveUi(state.ui)]);
+    await tauri.core.invoke("after_flush", { then: payload.then });
+  }).catch((error) => console.error("Notelet: could not listen for quit and update", error));
+}
+
+// WebView2's own back/forward keys are turned off with its other browser keys.
+function onHistoryKey(event) {
+  const direction = historyKey(event);
+  if (!direction) return;
+  event.preventDefault();
+  if (direction === "back") history.back();
+  else history.forward();
+}
+
+// A damaged notes file is explained once; a first launch with no notes offers the backup from the extension.
+function showStartupNotice(recovery, isEmpty) {
+  const message = recoveryMessage(recovery);
+  if (message) {
+    showToast(message);
+    return;
+  }
+  if (!isEmpty || state.ui.importOffered) return;
+  saveUiSoon({ importOffered: true });
+  showToast("Moving from the Chrome extension? Export a backup there, then choose Import backup.", { label: "Import backup", run: () => importNotes().catch(reportImportError) });
+}
+
+const toggleMaximize = () => tauri.core.invoke("toggle_maximize").catch((error) => console.error("Notelet: could not resize the window", error));
 
 function readView() {
   const pane = document.body.classList.contains("show-editor") ? "note" : "list";
@@ -202,20 +245,6 @@ function renderList() {
 }
 
 const deletedGroups = (visible) => (visible.length > 0 ? [{ label: null, notes: visible }] : []);
-
-// Saves first: closing the popup window would otherwise cut off a pending write.
-async function openFullPage() {
-  clearTimeout(uiSaveTimer);
-  await Promise.all([saves.flush(), store.saveUi(state.ui)]);
-  const [fullPage] = await chrome.runtime.getContexts({ contextTypes: ["TAB"], documentUrls: [FULL_PAGE_URL] });
-  if (fullPage) {
-    await chrome.tabs.update(fullPage.tabId, { active: true });
-    await chrome.windows.update(fullPage.windowId, { focused: true });
-  } else {
-    await chrome.tabs.create({ url: FULL_PAGE_URL });
-  }
-  await chrome.windows.remove((await chrome.windows.getCurrent()).id);
-}
 
 function cycleTheme() {
   const theme = nextTheme(state.ui.theme);
@@ -430,11 +459,16 @@ function toggleDeletedView() {
   selectFirstVisible();
 }
 
-function exportNotes() {
-  flushSaves();
+async function exportNotes() {
+  await flushSaves();
   const now = new Date();
-  downloadFile(createBackup([...notes.values()], state.settings, now), backupFileName(now));
+  await tauri.core.invoke("save_backup", { fileName: backupFileName(now), text: createBackup([...notes.values()], state.settings, now) });
 }
+
+const reportExportError = (error) => {
+  console.error("Notelet: export failed", error);
+  showToast(`Couldn't save the backup: ${error}`);
+};
 
 async function importNotes() {
   const text = await pickTextFile(".json,application/json");
@@ -582,8 +616,8 @@ function wireButtons() {
     "deleted-toggle": toggleDeletedView,
     "deleted-menu-item": toggleDeletedView,
     "theme-button": cycleTheme,
-    "open-full-page": () => openFullPage().catch((error) => console.error("Notelet: could not open the full page", error)),
-    "export-button": exportNotes,
+    "open-full-page": toggleMaximize,
+    "export-button": () => exportNotes().catch(reportExportError),
     "import-button": () => importNotes().catch(reportImportError),
     "help-button": showHelp,
   };
@@ -731,14 +765,14 @@ const APP_HOTKEYS = {
   }),
   deletedView: () => toggleDeletedView(),
   theme: () => cycleTheme(),
-  export: () => exportNotes(),
+  export: () => exportNotes().catch(reportExportError),
   import: () => importNotes().catch(reportImportError),
   formatMenu: () => state.mode === "notes" && notes.has(state.currentId) && openMenu(byId("format-menu")),
   noteMenu: () => notes.has(state.currentId) && openMenu(byId("note-menu")),
   pin: () => state.mode === "notes" && notes.has(state.currentId) && togglePin(),
   deleteNote: () => notes.has(state.currentId) && deleteCurrent(),
   recover: () => state.mode === "deleted" && notes.has(state.currentId) && recoverCurrent(),
-  openFullPage: () => IS_POPUP && openFullPage().catch((error) => console.error("Notelet: could not open the full page", error)),
+  openFullPage: toggleMaximize,
   trackerSettings: () => Boolean(notes.get(state.currentId)?.board) && openSettings(),
 };
 
@@ -766,12 +800,23 @@ function onMenuKeydown(event) {
 }
 
 const showHelp = () => openShortcuts({
-  dialog: byId("help"), isMac: IS_MAC, version: chrome.runtime.getManifest().version, keys: state.settings.hotkeys, onChange: saveShortcuts,
+  dialog: byId("help"), isMac: IS_MAC, version: appVersion, keys: state.settings.hotkeys, onChange: saveShortcuts,
 });
 
 function saveShortcuts(hotkeys) {
+  const previous = state.settings.hotkeys;
   adoptSettings({ ...state.settings, hotkeys });
   store.saveSettings(state.settings).catch(reportSaveError);
+  registerGlobalShortcut().catch(() => keepPreviousGlobalKey(previous));
+}
+
+// Windows refused the new global key, so the setting goes back to the key still registered.
+function keepPreviousGlobalKey(previousHotkeys) {
+  const { showHide: _refused, ...hotkeys } = state.settings.hotkeys;
+  const restored = Object.hasOwn(previousHotkeys, "showHide") ? { ...hotkeys, showHide: previousHotkeys.showHide } : hotkeys;
+  adoptSettings({ ...state.settings, hotkeys: restored });
+  store.saveSettings(state.settings).catch(reportSaveError);
+  showToast(SHORTCUT_TAKEN_MESSAGE);
 }
 
 // Changed shortcuts take effect at once, tooltips included.
