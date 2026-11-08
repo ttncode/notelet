@@ -283,7 +283,7 @@ fn disable_browser_keys(window: &WebviewWindow) {
         let Ok(core) = webview.controller().CoreWebView2() else { return };
         let Ok(settings) = core.Settings() else { return };
         if let Ok(settings) = settings.cast::<ICoreWebView2Settings3>() {
-            let _ = settings.SetAreBrowserAcceleratorKeysEnabled(false.into());
+            let _ = settings.SetAreBrowserAcceleratorKeysEnabled(false);
         }
     });
 }
