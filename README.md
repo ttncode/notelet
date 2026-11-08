@@ -5,14 +5,14 @@
 <h1 align="center">Notelet</h1>
 
 <p align="center">
-  Notes for Chrome in the style of iPhone Notes, with sprint tracking built in.<br>
+  Notes for Windows in the style of iPhone Notes, with sprint tracking built in.<br>
   No account, no sync, nothing sent anywhere.
 </p>
 
 <p align="center">
   <a href="https://github.com/ttncode/notelet/releases/latest"><img src="https://img.shields.io/github/v/release/ttncode/notelet" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/ttncode/notelet" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-yellow" alt="Chrome Manifest V3">
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-blue" alt="Windows 10 and 11">
 </p>
 
 <p align="center">
@@ -34,9 +34,9 @@
 - **Feels like Notes.** Title, Heading and Body styles, bulleted, dashed, numbered and check lists, pinned notes, Recently Deleted, light and dark themes. In a narrow window it switches to the iPhone layout and its slide between screens.
 - **Sprints in one note.** Every sprint and a Backlog live in one Sprints note: a points donut, goals per sprint and per month, drag-and-drop tasks and a rich-text note for each task.
 - **Keyboard first.** Every button has a shortcut, and you can change any of them.
-- **Back and forward.** The mouse's side buttons, the browser's Back and Forward and Alt+← / Alt+→ step through screens.
-- **Two windows, nothing lost.** Edit in the popup and a full page at once; changes merge instead of overwriting each other.
-- **Private.** Notes stay in your Chrome profile. Export a backup file whenever you like.
+- **Back and forward.** The mouse's side buttons and Alt+← / Alt+→ step through screens.
+- **A keystroke away.** `Ctrl+Alt+N` shows or hides Notelet from any app; it waits in the system tray.
+- **Private.** Notes stay in one file on your PC. Export a backup file whenever you like.
 
 
 ## Screenshots
@@ -71,29 +71,27 @@ Notelet is an independent project and is not affiliated with or endorsed by Appl
 
 ## Install
 
-1. Download `notelet-<version>.zip` from [Releases](https://github.com/ttncode/notelet/releases/latest).
-2. Unzip it into a folder you will keep, so `manifest.json` sits directly inside it. On Windows, `%LOCALAPPDATA%\Programs\Notelet` works well. Avoid Downloads, the Desktop and OneDrive folders, which can be cleaned up or made online-only.
-3. Open `chrome://extensions` and turn on **Developer mode**.
-4. Click **Load unpacked** and choose that folder.
-5. Pin Notelet to the toolbar. To open it from anywhere, set a shortcut at `chrome://extensions/shortcuts` (suggested: `Alt+.`).
+1. Download `Notelet_<version>_x64-setup.exe` from [Releases](https://github.com/ttncode/notelet/releases/latest).
+2. Run it. Windows may warn about an unknown publisher the first time, because the installer is not code-signed: click **More info**, then **Run anyway**. It installs for your account only, so no admin rights are needed.
+3. Notelet opens, adds an icon to the system tray and starts with Windows from then on.
 
-Clicking the Notelet icon opens a small window at the top right that you can move and resize; it remembers where you left it. The ⤢ button in that window opens Notelet as a full page.
-
-Works the same in Edge (`edge://extensions`) and Brave (`brave://extensions`).
+Press `Ctrl+Alt+N` from any app to show or hide Notelet. Closing the window (X) only hides it; to quit, right-click the tray icon → **Quit**. Turn off **Start with Windows** in the same menu if you don't want it at login. The window remembers its size and place; `Alt+Enter` or the ⤢ button maximizes and restores it.
 
 ## Update
 
-Extensions loaded this way never update themselves.
+Notelet updates itself. Each time it starts it checks for a new version, installs it and reopens, so nothing is lost: any change you are typing is saved first. To check now, right-click the tray icon → **Check for updates**.
 
-1. Export a backup (**⋯** above the notes list → **Export**).
-2. Replace the folder's contents with the new release.
-3. In `chrome://extensions`, click the reload icon on Notelet. Don't click **Remove**: that deletes your notes.
+## Moving from the Chrome extension
 
-Your notes stay: Notelet's extension ID is fixed, so Chrome keeps the same storage even if you move the folder (load it again from the new place).
+1. In the extension, export a backup (**⋯** above the notes list → **Export**).
+2. Install the desktop app.
+3. On first start it offers **Import backup**; choose the file. Or use **⋯** → **Import** any time.
+
+Notes, deleted notes, sprints, statuses, settings and custom shortcuts come across. The theme and the notes list width don't; set them again once. You can remove the extension afterwards.
 
 ## Back up and restore
 
-Notes live only in this browser profile. **Removing the extension deletes all of them**, and Chrome offers no way to keep them, so export regularly.
+Notes live in `%APPDATA%\com.ttncode.notelet\notelet.json`, with the previous save kept beside it as `notelet.json.bak`. If the file is ever damaged, Notelet opens the last good copy, or moves the damaged file aside (it is never deleted) and offers Import. The file stays on this PC only, so export regularly.
 
 - **Export** saves every note, sprint, setting and custom shortcut to one `.json` file.
 - **Import** merges a backup back in: a note with the same ID is replaced, and everything else is kept. Backups from any earlier version import, and old task-tracking notes in them join the Sprints note.
@@ -131,27 +129,24 @@ Press `Ctrl+/` (`⌘/` on Mac) for the full list, grouped by topic. Every button
 | Change case: lower, UPPER, Title | `Shift+F3` | `⇧F3` |
 | Back / Forward | mouse side buttons, `Alt+←` / `Alt+→` | mouse side buttons, `⌘[` / `⌘]` |
 | All shortcuts | `Ctrl+/` | `⌘/` |
+| Show / hide Notelet from any app | `Ctrl+Alt+N` | — |
 
-Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome keeps a key for itself (Ctrl+N, Ctrl+Shift+T) Notelet uses Alt instead.
+Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome kept a key for itself (Ctrl+N, Ctrl+Shift+T) Notelet uses Alt instead, the same keys as the extension had.
 
-**To change a shortcut**, click its key in the list and press the new one. Esc, Tab or a click elsewhere cancels; Backspace removes the key. Keys Chrome or Windows keep are refused, and a key another shortcut uses asks before taking it over. ↺ resets one shortcut; **Reset All to Default** resets them all.
+**To change a shortcut**, click its key in the list and press the new one. Esc, Tab or a click elsewhere cancels; Backspace removes the key. Keys Windows keeps, and those Chrome kept, are refused; the show / hide key must use Ctrl or Alt, and a key another app holds is refused with a message; and a key another shortcut uses asks before taking it over. ↺ resets one shortcut; **Reset All to Default** resets them all.
 
 ## Development
 
 ```bash
 npm install
-npm test                  # unit tests for the pure modules
-node tools/make-icons.mjs # regenerate icons
-tools/package.sh          # build dist/notelet-<version>.zip
+npm test                  # unit tests for the UI modules
+node tools/make-icons.mjs # regenerate icons, then: npx tauri icon desktop/icons/source.png -o desktop/icons
+npm run tauri dev         # run the app (Windows, with Rust and the MSVC build tools)
 ```
 
-Load the `extension/` folder unpacked to try changes, then click reload in `chrome://extensions`.
+The UI lives in `extension/` and runs unchanged inside the Tauri shell in `desktop/`. CI on Windows runs the unit tests, `cargo test`, clippy, a release build and end-to-end tests that press every shortcut in the built app. Working in WSL, where the Windows toolchain is not available, push a branch and let CI build it.
 
-Working in WSL? Chrome's folder picker cannot open `\\wsl.localhost` paths, so copy the folder to the Windows side and load the copy:
-
-```bash
-rsync -a --delete extension/ /mnt/c/Users/<you>/Notelet-dev/
-```
+Pushing a `v*` tag builds the installer, signs the update, and publishes the release with the `latest.json` the app checks.
 
 ## License
 

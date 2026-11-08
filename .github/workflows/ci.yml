@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    # windows-2025 images break WebView2 WebDriver sessions (actions/runner-images#14738).
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Unit tests
+        run: npm test
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop
+      - name: Rust tests
+        run: cargo test --manifest-path desktop/Cargo.toml
+      - name: Clippy
+        run: cargo clippy --manifest-path desktop/Cargo.toml --all-targets -- -D warnings
+      - name: Resolved WebView2 crates
+        run: cargo tree --manifest-path desktop/Cargo.toml -i webview2-com
+      - name: Build app
+        run: npx tauri build --no-bundle
+      - name: Install tauri-driver and Edge driver
+        shell: pwsh
+        run: |
+          cargo install tauri-driver --locked
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$HOME\.cargo\bin\msedgedriver-tool.exe"
+      - name: End-to-end tests
+        shell: pwsh
+        env:
+          NOTELET_APP: ${{ github.workspace }}\desktop\target\release\notelet.exe
+        run: |
+          $driver = Start-Process tauri-driver -ArgumentList '--native-driver', "$PWD\msedgedriver.exe" -PassThru
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-NetConnection 127.0.0.1 -Port 4444 -InformationLevel Quiet)) {
+            if ((Get-Date) -gt $deadline) { throw "tauri-driver did not start" }
+            Start-Sleep -Seconds 1
+          }
+          try { npm run test:e2e } finally { Stop-Process -Id $driver.Id -ErrorAction SilentlyContinue }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
