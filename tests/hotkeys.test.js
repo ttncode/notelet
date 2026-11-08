@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HOTKEYS, fillShortcuts, hotkeyLabel, matchHotkey, normalizeCustomKeys, reservedReason, setCustomKeys } from "../extension/hotkeys.js";
+import { HOTKEYS, defaultHotkey, fillShortcuts, globalCombo, hotkeyLabel, matchHotkey, normalizeCustomKeys, reservedReason, setCustomKeys } from "../extension/hotkeys.js";
 
 const key = (code, modifiers = {}) => ({
   code, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, isComposing: false, ...modifiers,
@@ -131,4 +131,37 @@ test("stored shortcut changes keep only well-formed keys for shortcuts that can 
   assert.deepEqual(Object.keys(normalizeCustomKeys(stored)), ["pin", "newNote"]);
   assert.deepEqual(normalizeCustomKeys("nope"), {});
   assert.deepEqual(new Set(HOTKEYS.map((hotkey) => hotkey.id)).size, HOTKEYS.length);
+});
+
+const plainCombo = (code, modifiers = {}) => ({ mod: false, alt: false, shift: false, code, ...modifiers });
+
+test("the global shortcut defaults to Ctrl+Alt+N and is marked global", () => {
+  const hotkey = HOTKEYS.find((candidate) => candidate.id === "showHide");
+  assert.equal(hotkey.mod, true);
+  assert.equal(hotkey.alt, true);
+  assert.equal(hotkey.code, "KeyN");
+  assert.equal(hotkey.global, true);
+  assert.equal(matchHotkey(key("KeyN", { ctrlKey: true, altKey: true }), false), "showHide");
+});
+
+test("a global key needs Ctrl or Alt, even a function key", () => {
+  assert.equal(reservedReason(plainCombo("F1"), false, defaultHotkey("showHide")), "A key that works in every app needs Ctrl or Alt.");
+  assert.equal(reservedReason(plainCombo("F1"), false, defaultHotkey("help")), null);
+  assert.equal(reservedReason(plainCombo("KeyK", { mod: true, alt: true }), false, defaultHotkey("showHide")), null);
+});
+
+test("in-app key rules are unchanged", () => {
+  assert.equal(reservedReason(plainCombo("KeyN", { mod: true }), false), "Chrome keeps Ctrl+N for itself.");
+});
+
+test("globalCombo follows custom keys", () => {
+  try {
+    assert.deepEqual(globalCombo(), { mod: true, alt: true, shift: false, code: "KeyN" });
+    setCustomKeys({ showHide: null });
+    assert.equal(globalCombo(), null);
+    setCustomKeys({ showHide: plainCombo("KeyK", { alt: true }) });
+    assert.deepEqual(globalCombo(), plainCombo("KeyK", { alt: true }));
+  } finally {
+    setCustomKeys({});
+  }
 });
