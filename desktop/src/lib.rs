@@ -168,8 +168,9 @@ fn request_after_flush(app: &AppHandle, pending: Pending) {
 }
 
 fn run_pending(app: &AppHandle, then: &str) {
+    let state = app.state::<AppState>();
     let pending = {
-        let Ok(mut slot) = app.state::<AppState>().pending.lock() else { return };
+        let Ok(mut slot) = state.pending.lock() else { return };
         if slot.as_ref().map(Pending::name) != Some(then) {
             return;
         }

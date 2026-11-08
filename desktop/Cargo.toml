@@ -26,7 +26,7 @@ serde_json = "1"
 # Must match the versions Tauri's WebView2 runtime uses, since with_webview hands over its types.
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.38"
-windows-core = "0.61"
+windows-core = "0.62"
 
 [dev-dependencies]
 tempfile = "3"
