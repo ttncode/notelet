@@ -10,6 +10,8 @@ test("WebDriver key values for letters, digits, function keys and punctuation", 
   assert.equal(keyValue("F5"), "");
   assert.equal(keyValue("F12"), "");
   assert.equal(keyValue("Slash"), "/");
+  // \uE007 is the numpad Enter (code NumpadEnter); the main Enter key is \uE006.
+  assert.equal(keyValue("Enter"), "\uE006");
   assert.equal(keyValue("ArrowLeft"), "");
   assert.throws(() => keyValue("NumpadAdd"), /no WebDriver key/);
 });

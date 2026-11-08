@@ -5,7 +5,7 @@ const POLL_MS = 100;
 
 const MODIFIER_KEYS = { mod: "", alt: "", shift: "" };
 const SPECIAL_KEYS = {
-  Enter: "", Backspace: "", Delete: "", Tab: "", Escape: "", Space: " ",
+  Enter: "\uE006", Backspace: "", Delete: "", Tab: "", Escape: "", Space: " ",
   ArrowUp: "", ArrowDown: "", ArrowLeft: "", ArrowRight: "",
   Slash: "/", Comma: ",", Period: ".", BracketLeft: "[", BracketRight: "]", Minus: "-", Equal: "=",
   Semicolon: ";", Quote: "'", Backslash: "\\", Backquote: "`",
