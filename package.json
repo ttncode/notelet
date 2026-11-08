@@ -6,7 +6,7 @@
   "scripts": {
     "test": "node --test tests/",
     "tauri": "tauri",
-    "test:e2e": "node --test tests-e2e/"
+    "test:e2e": "node --test tests-e2e/app.e2e.js"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4",
