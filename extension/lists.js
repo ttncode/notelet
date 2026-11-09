@@ -68,6 +68,41 @@ export function itemCreatedBySplit(itemBefore, itemAfter) {
   return itemAfter === itemBefore ? itemBefore.previousElementSibling : itemAfter;
 }
 
+export function clearItemState(item) {
+  if (item.hasAttribute("data-checked")) item.setAttribute("data-checked", "false");
+  item.removeAttribute("data-points");
+  item.removeAttribute("data-status");
+}
+
+function emptyItemLike(item) {
+  const next = item.cloneNode(false);
+  clearItemState(next);
+  return next;
+}
+
+// Chrome leaves lines pasted into a list item as <p>s inside it; each should be its own item.
+// Whatever follows a pasted line, such as the rest of the old line, stays with it. Returns which
+// item replaced which <p>.
+export function splitParagraphsIntoItems(item) {
+  const replaced = new Map();
+  const firstParagraph = [...item.children].find((child) => child.tagName === "P");
+  if (!firstParagraph) return replaced;
+  let last = item;
+  for (const node of [firstParagraph, ...siblingsAfter(firstParagraph)]) {
+    if (node.tagName !== "P") {
+      last.append(node);
+      continue;
+    }
+    const next = emptyItemLike(item);
+    next.append(...node.childNodes);
+    last.after(next);
+    node.remove();
+    replaced.set(node, next);
+    last = next;
+  }
+  return replaced;
+}
+
 const LIST_SHORTCUTS = { "-": "dashed", "*": "bulleted", "•": "bulleted", "1.": "numbered", "1)": "numbered" };
 const CHECKBOX_SHORTCUTS = { "[ ]": false, "[]": false, "[x]": true, "[X]": true };
 const TEXT_NODE = 3;

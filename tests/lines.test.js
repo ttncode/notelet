@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseHtml } from "../extension/model.js";
 import {
-  ABOVE, BELOW, duplicateLine, indentText, insertLine, lineOf, moveLine, nextLine, outdentText, previousLine, removeLine,
+  ABOVE, BELOW, duplicateLine, indentText, insertLine, lineOf, moveLines, nextLine, outdentText, previousLine, removeLine,
 } from "../extension/lines.js";
 
 const NOTE = "<h1>Title</h1><p>one</p><ul class=\"checklist\"><li data-checked=\"true\">a<ul><li>nested</li></ul></li><li data-checked=\"false\">b</li></ul><p>two</p>";
@@ -12,10 +12,10 @@ const line = (body, text) => [...body.querySelectorAll("h1,p,li")].find((element
 
 test("a line moves past its neighbour and stays put at an edge", () => {
   const body = note();
-  assert.equal(moveLine(line(body, "one"), ABOVE), true);
+  assert.equal(moveLines([line(body, "one")], ABOVE), true);
   assert.match(body.innerHTML, /^<p>one<\/p><h1>Title<\/h1>/);
-  assert.equal(moveLine(line(body, "b"), BELOW), false);
-  assert.equal(moveLine(line(body, "b"), ABOVE), true);
+  assert.equal(moveLines([line(body, "b")], BELOW), false);
+  assert.equal(moveLines([line(body, "b")], ABOVE), true);
   assert.match(body.innerHTML, /<ul class="checklist"><li data-checked="false">b<\/li><li data-checked="true">a/);
 });
 
@@ -62,4 +62,13 @@ test("the line of a node is its block, never the note itself", () => {
   const body = note();
   assert.equal(lineOf(body, line(body, "one").firstChild), line(body, "one"));
   assert.equal(lineOf(body, body), null);
+});
+
+test("selected lines move together past the next neighbour", () => {
+  const body = parseHtml("<p>a</p><p>b</p><p>c</p>").body;
+  const [a, b] = body.children;
+  assert.equal(moveLines([a, b], BELOW), true);
+  assert.equal(body.innerHTML, "<p>c</p><p>a</p><p>b</p>");
+  assert.equal(moveLines([a, b], BELOW), false);
+  assert.equal(moveLines([], BELOW), false);
 });

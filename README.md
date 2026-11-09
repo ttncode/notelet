@@ -129,6 +129,8 @@ Press `Ctrl+/` (`⌘/` on Mac) for the full list, grouped by topic. Every button
 | Back / Forward | mouse side buttons, `Alt+←` / `Alt+→` | mouse side buttons, `⌘[` / `⌘]` |
 | All shortcuts | `Ctrl+/` | `⌘/` |
 
+`Ctrl+click` (`⌘`-click on Mac) opens a link in a note; a plain click only places the caret.
+
 Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome kept a key for itself (Ctrl+N, Ctrl+Shift+T) Notelet uses Alt instead, the same keys as the extension had.
 
 **To change a shortcut**, click its key in the list and press the new one. Esc, Tab or a click elsewhere cancels; Backspace removes the key. Keys Windows keeps, and those Chrome kept, are refused; a key another shortcut uses asks before taking it over. ↺ resets one shortcut; **Reset All to Default** resets them all.
