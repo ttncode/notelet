@@ -63,13 +63,6 @@ function removeKeys(map, keys) {
   return changes;
 }
 
-// The accelerator string the global-shortcut plugin parses, e.g. "Ctrl+Alt+KeyN".
-export function toAccelerator(combo) {
-  if (!combo?.code) return null;
-  const modifiers = [combo.mod && "Ctrl", combo.alt && "Alt", combo.shift && "Shift"].filter(Boolean);
-  return [...modifiers, combo.code].join("+");
-}
-
 export function recoveryMessage({ recovered, damagedPath }) {
   if (recovered === "backup") return "Notelet's notes file was damaged, so the last good copy was opened. Your most recent change may be missing.";
   if (recovered === "reset") return `Notelet's notes file was damaged and was moved to ${damagedPath}. Import a backup to bring your notes back.`;

@@ -1,7 +1,7 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createFileArea, historyKey, recoveryMessage, toAccelerator, whenShown } from "../extension/desktop.js";
+import { createFileArea, historyKey, recoveryMessage, whenShown } from "../extension/desktop.js";
 import { DEFAULT_UI, SCHEMA_VERSION, createStore } from "../extension/store.js";
 import { defaultSettings } from "../extension/sprint.js";
 
@@ -84,14 +84,6 @@ test("the store works on the file area: a fresh install gets defaults and the sc
   const loaded = await createStore(createFileArea(backend.invoke)).load();
   assert.deepEqual(loaded, { notes: [], ui: DEFAULT_UI, settings: defaultSettings() });
   assert.equal(backend.saves.at(-1).schemaVersion, SCHEMA_VERSION);
-});
-
-test("toAccelerator names modifiers in Ctrl, Alt, Shift order", () => {
-  assert.equal(toAccelerator({ mod: true, alt: true, shift: false, code: "KeyN" }), "Ctrl+Alt+KeyN");
-  assert.equal(toAccelerator({ mod: true, alt: true, shift: true, code: "Digit1" }), "Ctrl+Alt+Shift+Digit1");
-  assert.equal(toAccelerator({ mod: false, alt: true, shift: false, code: "F2" }), "Alt+F2");
-  assert.equal(toAccelerator(null), null);
-  assert.equal(toAccelerator({ mod: true, alt: false, shift: false, code: null }), null);
 });
 
 test("recoveryMessage explains a restored copy or a moved file", () => {

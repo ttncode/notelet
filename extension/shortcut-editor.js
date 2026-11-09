@@ -75,7 +75,7 @@ function recordKey(event, { id, keys, isMac }) {
   if (event.key === "Escape") return {};
   if (event.key === "Backspace" || event.key === "Delete") return { keys: { ...keys, [id]: null } };
   const combo = comboOf(event, isMac);
-  const reason = reservedReason(combo, isMac, defaultHotkey(id));
+  const reason = reservedReason(combo, isMac);
   if (reason) return { message: { id, text: reason } };
   const other = hotkeysWith(keys).find((hotkey) => hotkey.id !== id && sameCombo(hotkey, combo));
   if (other && !isEditable(other)) return { message: { id, text: `${hotkeyLabel(combo, isMac)} is ${other.label}, which Chrome handles.` } };

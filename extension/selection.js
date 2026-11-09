@@ -67,6 +67,23 @@ export function placeCaretAfter(node) {
   selectRange(range);
 }
 
+// Selection fields are live, so this copies them. Text nodes survive a line changing type or
+// moving, which lets restoreSelection put back exactly what was selected; replaced maps lines
+// that were swapped for a new element, for selections that sit on the line itself.
+export function saveSelection() {
+  const { anchorNode, anchorOffset, focusNode, focusOffset } = document.getSelection();
+  return { anchorNode, anchorOffset, focusNode, focusOffset };
+}
+
+export function restoreSelection(saved, replaced = new Map()) {
+  const anchor = replaced.get(saved.anchorNode) ?? saved.anchorNode;
+  const focus = replaced.get(saved.focusNode) ?? saved.focusNode;
+  if (!anchor?.isConnected || !focus?.isConnected) return;
+  document.getSelection().setBaseAndExtent(anchor, Math.min(saved.anchorOffset, nodeLength(anchor)), focus, Math.min(saved.focusOffset, nodeLength(focus)));
+}
+
+const nodeLength = (node) => (node.nodeType === Node.TEXT_NODE ? node.length : node.childNodes.length);
+
 function selectRange(range) {
   const selection = document.getSelection();
   selection.removeAllRanges();

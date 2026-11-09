@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseHtml } from "../extension/model.js";
 import {
-  checkboxForShortcut, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType,
+  checkboxForShortcut, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType, splitParagraphsIntoItems,
 } from "../extension/lists.js";
 
 function paragraphWith(...children) {
@@ -138,4 +138,16 @@ test("an empty leftover after the list does not become a blank paragraph", () =>
   const { body, list } = paragraphWith("list", "");
   liftListOutOfParagraph(list);
   assert.equal(body.innerHTML, "<ul><li></li></ul>");
+});
+
+test("lines pasted into a list item become items, and the old line's tail stays last", () => {
+  const body = parseHtml('<ul class="checklist"><li data-checked="true" data-points="3">a<p>b</p><p>c</p>tail<ul><li>kid</li></ul></li></ul>').body;
+  splitParagraphsIntoItems(body.querySelector("li"));
+  assert.equal(body.innerHTML, '<ul class="checklist"><li data-checked="true" data-points="3">a</li><li data-checked="false">b</li><li data-checked="false">ctail<ul><li>kid</li></ul></li></ul>');
+});
+
+test("an item without pasted lines is left alone", () => {
+  const body = parseHtml("<ul><li>a</li></ul>").body;
+  assert.equal(splitParagraphsIntoItems(body.querySelector("li")).size, 0);
+  assert.equal(body.innerHTML, "<ul><li>a</li></ul>");
 });

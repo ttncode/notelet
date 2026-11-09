@@ -79,6 +79,8 @@ function textMarker(list, item, index) {
 // characters. data-copy-marker lets a paste back into Notelet drop them again.
 export function clipboardHtml(root) {
   const copy = root.cloneNode(true);
+  // Chrome leaves font-size and colour spans in a note when lines merge.
+  copy.querySelectorAll("[style]").forEach((element) => element.removeAttribute("style"));
   for (const list of copy.querySelectorAll("ul.checklist, ul.dashed")) {
     list.setAttribute("style", "list-style: none; padding-left: 0");
     for (const item of list.children) item.prepend(htmlMarker(list, item));

@@ -163,7 +163,7 @@ body:not(.viewing-deleted) #recover-button { display: none; }
   border-color: var(--accent);
   background: var(--accent) var(--check-mark) center / 75% no-repeat;
 }
-.editor a { color: var(--accent-text); cursor: pointer; }
+.editor a { color: var(--accent-text); cursor: text; }
 
 /* Sprints: one screen at a time — a sprint or the backlog, all sprints by month, or one task. */
 .board { margin-bottom: 0.5rem; container-type: inline-size; }

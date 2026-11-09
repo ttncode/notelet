@@ -82,3 +82,9 @@ test("text selected inside a heading or Monostyled line copies with its style", 
   assert.equal(selectedContent(selectionInside(body.querySelector("pre").firstChild)).innerHTML, "<pre>mono</pre>");
   assert.equal(selectedContent(selectionInside(body.querySelector("p").firstChild)).innerHTML, "Body");
 });
+
+test("inline styles left in a note by the browser stay out of the copied HTML", () => {
+  const html = clipboardHtml(root('<p>a <span style="font-size: 26px; color: red">b</span></p><ul class="dashed"><li>c</li></ul>'));
+  assert.doesNotMatch(html, /font-size|color/);
+  assert.match(html, /<ul[^>]*style="list-style: none; padding-left: 0"/);
+});

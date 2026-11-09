@@ -3,15 +3,15 @@ import { clipboardHtml, clipboardText, selectedContent } from "./clipboard.js";
 import { History } from "./history.js";
 import { matchHotkey } from "./hotkeys.js";
 import {
-  ABOVE, BELOW, duplicateLine, indentText, insertLine, lineOf, moveLine, nextLine, outdentText, previousLine, removeLine,
+  ABOVE, BELOW, duplicateLine, endingInsideText, indentText, insertLine, lineOf, moveLines, nextLine, outdentText, previousLine, removeLine, selectedLines, withoutNextLineStart,
 } from "./lines.js";
 import {
-  checkboxForShortcut, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType,
+  checkboxForShortcut, clearItemState, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType, splitParagraphsIntoItems,
 } from "./lists.js";
 import { EMPTY_NOTE_HTML } from "./model.js";
-import { sanitizeHtml } from "./sanitize.js";
+import { linkableUrl, normalizeLineBreaks, plainTextToHtml, sanitizeHtml, sanitizePastedHtml } from "./sanitize.js";
 import {
-  caretBlock, caretElement, caretOffset, isCaretAtEndOf, placeCaret, placeCaretAfter, placeCaretAtEnd, placeCaretAtStart, setCaretOffset,
+  caretBlock, caretElement, caretOffset, isCaretAtEndOf, placeCaret, placeCaretAfter, placeCaretAtEnd, placeCaretAtStart, restoreSelection, saveSelection, setCaretOffset,
 } from "./selection.js";
 
 const TYPING_PAUSE_MS = 1000;
@@ -32,6 +32,7 @@ const EDITOR_ACTIONS = new Set([
 const PASTE_INPUT_TYPES = new Set(["insertFromPaste", "insertFromPasteAsQuotation", "insertFromDrop"]);
 const BURST_KINDS = new Set(["type", "delete"]);
 const CHECKLIST_ITEM = "ul.checklist > li";
+const LIST_READY_TAGS = new Set(["P", "DIV", "LI"]);
 
 export class NoteEditor {
   #element;
@@ -130,16 +131,27 @@ export class NoteEditor {
   }
 
   #editLine(action, direction) {
+    if (action.startsWith("moveLine")) return this.#moveSelectedLines(direction);
     const line = caretBlock(this.#element);
     if (!line) return;
     const offset = caretOffset(line);
-    if (action.startsWith("insertLine")) {
-      placeCaretAtStart(insertLine(line, direction));
-    } else if (action.startsWith("duplicateLine")) {
-      setCaretOffset(duplicateLine(line, direction), offset);
-    } else if (moveLine(line, direction)) {
-      setCaretOffset(line, offset);
-    }
+    if (action.startsWith("insertLine")) placeCaretAtStart(insertLine(line, direction));
+    else setCaretOffset(duplicateLine(line, direction), offset);
+  }
+
+  #moveSelectedLines(direction) {
+    const saved = saveSelection();
+    if (moveLines(this.#selectedLines(), direction)) restoreSelection(saved);
+  }
+
+  // The lines under the selection, or the caret's line.
+  #selectedLines() {
+    const selection = document.getSelection();
+    if (!selection.rangeCount || !this.#element.contains(selection.anchorNode)) return [];
+    const lines = selection.isCollapsed ? [] : selectedLines(this.#element, selection.getRangeAt(0));
+    if (lines.length > 0) return lines;
+    const line = caretBlock(this.#element);
+    return line ? [line] : [];
   }
 
   // In a list this nests the item like Tab; elsewhere it adds or removes a leading tab.
@@ -149,7 +161,12 @@ export class NoteEditor {
       this.#matchNestedListKind();
       return;
     }
-    const line = caretBlock(this.#element);
+    const lines = this.#selectedLines();
+    if (lines.length > 1) {
+      lines.forEach(command === "indent" ? indentText : outdentText);
+      return;
+    }
+    const [line] = lines;
     if (!line) return;
     const offset = caretOffset(line);
     if (command === "indent") {
@@ -222,6 +239,7 @@ export class NoteEditor {
     element.addEventListener("click", (event) => this.#onClick(event));
     element.addEventListener("copy", (event) => this.#onCopy(event));
     element.addEventListener("cut", (event) => this.#onCut(event));
+    element.addEventListener("paste", (event) => this.#onPaste(event));
     document.addEventListener("selectionchange", () => this.#rememberSelection());
   }
 
@@ -247,6 +265,7 @@ export class NoteEditor {
       else this.#redo();
       return;
     }
+    this.#trimSelectionToLine();
     if (event.inputType === "insertParagraph") this.#itemBeforeEnter = caretElement(this.#element)?.closest(CHECKLIST_ITEM) ?? null;
     if (!event.isComposing) this.#checkpointTyping(event.inputType);
   }
@@ -265,9 +284,10 @@ export class NoteEditor {
     if (!block || !HEADING_TAGS.has(block.tagName) || !isCaretAtEndOf(block)) return;
     event.preventDefault();
     this.#checkpoint();
+    if (!document.getSelection().isCollapsed) document.execCommand("delete");
     const paragraph = document.createElement("p");
     paragraph.append(document.createElement("br"));
-    block.after(paragraph);
+    (caretBlock(this.#element) ?? block).after(paragraph);
     placeCaretAtStart(paragraph);
     this.#changed();
   }
@@ -275,7 +295,7 @@ export class NoteEditor {
   #onTab(event) {
     event.preventDefault();
     this.#checkpoint();
-    if (caretElement(this.#element)?.closest("li")) {
+    if (caretElement(this.#element)?.closest("li") || this.#selectedLines().length > 1) {
       this.#indentLine(event.shiftKey ? "outdent" : "indent");
     } else if (!event.shiftKey) {
       document.execCommand("insertText", false, "\t");
@@ -289,7 +309,7 @@ export class NoteEditor {
     if (!link) return;
     event.preventDefault();
     const space = document.createTextNode(" ");
-    link.after(space);
+    document.getSelection().getRangeAt(0).insertNode(space);
     placeCaret(space, 1);
     this.#changed();
   }
@@ -348,7 +368,7 @@ export class NoteEditor {
   #rangeToCopy() {
     const selection = document.getSelection();
     if (!selection.rangeCount || !this.#element.contains(selection.anchorNode)) return null;
-    if (!selection.isCollapsed) return selection.getRangeAt(0);
+    if (!selection.isCollapsed) return withoutNextLineStart(this.#element, selection.getRangeAt(0));
     const line = caretBlock(this.#element);
     if (!line) return null;
     const range = document.createRange();
@@ -360,8 +380,69 @@ export class NoteEditor {
   #onCut(event) {
     if (!this.#onCopy(event) || !this.#element.isContentEditable) return;
     this.#checkpoint();
-    if (document.getSelection().isCollapsed) this.#removeCaretLine();
-    else document.execCommand("delete");
+    if (document.getSelection().isCollapsed) {
+      this.#removeCaretLine();
+      return;
+    }
+    const reachedNextLine = this.#trimSelectionToLine();
+    document.execCommand("delete");
+    if (reachedNextLine && caretBlock(this.#element)?.textContent === "") this.#removeCaretLine();
+  }
+
+  // Replacing a selection that reaches into the next line would pull that line up into this one.
+  // Returns whether the selection did reach it.
+  #trimSelectionToLine() {
+    const selection = document.getSelection();
+    if (selection.isCollapsed || !this.#element.contains(selection.anchorNode)) return false;
+    const range = selection.getRangeAt(0);
+    const trimmed = withoutNextLineStart(this.#element, range);
+    if (trimmed === range) return false;
+    selection.removeAllRanges();
+    selection.addRange(endingInsideText(trimmed));
+    return true;
+  }
+
+  // Cleaned here, not after the browser pastes: once in the note, a line break of the page's
+  // source can't be told from a real one. With Ctrl+Shift+V Chrome offers only the text.
+  #onPaste(event) {
+    if (!this.#element.isContentEditable) return;
+    const html = event.clipboardData.getData("text/html");
+    const text = event.clipboardData.getData("text/plain");
+    if (!html && !text) return;
+    event.preventDefault();
+    this.#checkpoint();
+    this.#trimSelectionToLine();
+    const cleanHtml = html ? sanitizePastedHtml(html) : "";
+    if (cleanHtml) document.execCommand("insertHTML", false, cleanHtml);
+    else this.#insertPlainText(text);
+    this.#keepPastedLinesAsItems();
+    this.#ensureContent();
+    this.#changed();
+  }
+
+  #keepPastedLinesAsItems() {
+    const item = caretElement(this.#element)?.closest("li");
+    if (!item) return;
+    const saved = saveSelection();
+    restoreSelection(saved, splitParagraphsIntoItems(item));
+  }
+
+  #insertPlainText(text) {
+    const lines = normalizeLineBreaks(text).replace(/\n$/, "");
+    const caretAt = caretElement(this.#element);
+    if (!lines.includes("\n") || caretAt?.closest("pre")) document.execCommand("insertText", false, lines);
+    else if (caretAt?.closest("li")) this.#insertLinesAsItems(lines.split("\n").filter(Boolean), caretAt.closest("li").parentElement);
+    else document.execCommand("insertHTML", false, plainTextToHtml(text));
+  }
+
+  // Blank lines are dropped: Enter on an empty item would leave the list.
+  #insertLinesAsItems(lines, list) {
+    const existing = new Set(list.children);
+    lines.forEach((line, index) => {
+      if (index > 0) document.execCommand("insertParagraph");
+      document.execCommand("insertText", false, line);
+    });
+    [...list.children].filter((item) => !existing.has(item)).forEach(clearItemState);
   }
 
   #removeCaretLine() {
@@ -379,14 +460,18 @@ export class NoteEditor {
     const link = event.target.closest?.("a[href]");
     if (!link) return;
     event.preventDefault();
-    window.open(link.href, "_blank", "noopener");
+    // A plain click must stay free for placing the caret and selecting the link's text.
+    const opensLink = (this.#isMac ? event.metaKey : event.ctrlKey) || !this.#element.isContentEditable;
+    if (opensLink) window.open(link.href, "_blank", "noopener");
   }
 
   #setBlock(tag) {
-    const block = caretBlock(this.#element);
-    if (!block) return;
-    const offset = caretOffset(block);
-    setCaretOffset(setBlockType(block, tag), offset);
+    this.#retype(this.#selectedLines(), tag);
+  }
+
+  #retype(lines, tag) {
+    const saved = saveSelection();
+    restoreSelection(saved, new Map(lines.map((line) => [line, setBlockType(line, tag)])));
   }
 
   #toggleList(kind) {
@@ -395,18 +480,16 @@ export class NoteEditor {
       document.execCommand(listCommand(current));
       return;
     }
-    const block = caretBlock(this.#element);
-    if (!current && block && block.tagName !== "P" && block.tagName !== "DIV") setCaretOffset(setBlockType(block, "p"), 0);
+    if (!current) this.#retype(this.#selectedLines().filter((line) => !LIST_READY_TAGS.has(line.tagName)), "p");
     if (!current || (current.tagName === "OL") !== (kind === "numbered")) {
       document.execCommand(kind === "numbered" ? "insertOrderedList" : "insertUnorderedList");
     }
     const list = caretElement(this.#element)?.closest("ul,ol");
     if (!list) return;
-    unwrapStyledSpans(list);
     applyListKind(list, kind);
-    const { focusNode, focusOffset } = document.getSelection();
+    const saved = saveSelection();
     liftListOutOfParagraph(list);
-    placeCaret(focusNode, focusOffset);
+    restoreSelection(saved);
   }
 
   // Chrome's list and block commands rebuild the line and drop the caret at its start.
@@ -447,13 +530,16 @@ export class NoteEditor {
     const match = node.textContent.slice(0, end).match(URL_BEFORE_CARET);
     if (!match) return null;
     this.#checkpoint();
+    const url = linkableUrl(match[1]);
+    const punctuation = match[1].length - url.length;
     const range = document.createRange();
     range.setStart(node, end - match[1].length);
-    range.setEnd(node, end);
+    range.setEnd(node, end - punctuation);
     const link = document.createElement("a");
-    link.href = match[1];
+    link.href = url;
     range.surroundContents(link);
-    placeCaretAfter(link);
+    if (punctuation > 0) placeCaret(link.nextSibling, punctuation);
+    else placeCaretAfter(link);
     return link;
   }
 
@@ -518,7 +604,20 @@ export class NoteEditor {
   }
 
   #changed() {
+    this.#stripBrowserStyling();
     this.#onChange(this.#element.innerHTML);
+  }
+
+  // Chrome pins the old look on text with inline styles when lines merge, a list changes type or
+  // bold is toggled in a heading. Notes have no inline styles, so these only get in the way.
+  #stripBrowserStyling() {
+    const styled = this.#element.querySelectorAll("[style]");
+    const wrappers = this.#element.querySelectorAll("span, font");
+    if (styled.length === 0 && wrappers.length === 0) return;
+    const saved = saveSelection();
+    styled.forEach((element) => element.removeAttribute("style"));
+    wrappers.forEach((wrapper) => wrapper.replaceWith(...wrapper.childNodes));
+    restoreSelection(saved);
   }
 }
 
@@ -538,12 +637,6 @@ function applyListKind(list, kind) {
     if (kind !== "checklist") item.removeAttribute("data-checked");
     else if (!item.hasAttribute("data-checked")) item.setAttribute("data-checked", "false");
   }
-}
-
-// Switching between list types, Chrome wraps the text in <span style="font-size: …"> copied
-// from the old list; the note has no inline styles, so the spans only get in the way.
-function unwrapStyledSpans(list) {
-  list.querySelectorAll("span[style]").forEach((span) => span.replaceWith(...span.childNodes));
 }
 
 function toggleChecked(item) {
