@@ -10,7 +10,6 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow, WindowEvent};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt as _};
 use tauri_plugin_dialog::DialogExt;
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_plugin_updater::{Update, UpdaterExt};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
@@ -38,7 +37,6 @@ impl Pending {
 #[derive(Default)]
 struct AppState {
     storage_lock: Mutex<()>,
-    global_shortcut: Mutex<Option<Shortcut>>,
     pending: Mutex<Option<Pending>>,
 }
 
@@ -74,28 +72,6 @@ fn storage_load(app: AppHandle, state: State<AppState>) -> Result<LoadResponse, 
 fn storage_save(app: AppHandle, state: State<AppState>, data: Map<String, Value>) -> Result<(), String> {
     let _guard = state.storage_lock.lock().map_err(|error| error.to_string())?;
     storage::save(&data_dir(&app)?, &data).map_err(|error| error.to_string())
-}
-
-/// Registers the new key before letting go of the old one, so a key another app holds leaves
-/// the old key working. Returns `Err("taken")` in that case; `None` removes the key.
-#[tauri::command]
-fn set_global_shortcut(app: AppHandle, state: State<AppState>, accelerator: Option<String>) -> Result<(), String> {
-    let wanted = accelerator
-        .map(|text| text.parse::<Shortcut>().map_err(|error| error.to_string()))
-        .transpose()?;
-    let mut current = state.global_shortcut.lock().map_err(|error| error.to_string())?;
-    if wanted == *current {
-        return Ok(());
-    }
-    let shortcuts = app.global_shortcut();
-    if let Some(shortcut) = wanted {
-        shortcuts.register(shortcut).map_err(|_| "taken".to_string())?;
-    }
-    if let Some(old) = current.take() {
-        let _ = shortcuts.unregister(old);
-    }
-    *current = wanted;
-    Ok(())
 }
 
 #[tauri::command]
@@ -140,16 +116,6 @@ fn hide_main(app: &AppHandle) {
     let _ = app.save_window_state(window_state_flags());
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         let _ = window.hide();
-    }
-}
-
-fn toggle_main(app: &AppHandle) {
-    let Some(window) = app.get_webview_window(MAIN_WINDOW) else { return };
-    let in_front = window.is_visible().unwrap_or(false) && window.is_focused().unwrap_or(false);
-    if in_front {
-        hide_main(app);
-    } else {
-        show_main(app);
     }
 }
 
@@ -307,22 +273,12 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec![HIDDEN_ARG])))
         .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(window_state_flags()).build())
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
-                    if event.state == ShortcutState::Pressed {
-                        toggle_main(app);
-                    }
-                })
-                .build(),
-        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             storage_load,
             storage_save,
-            set_global_shortcut,
             toggle_maximize,
             after_flush,
             save_backup

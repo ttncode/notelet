@@ -1,12 +1,12 @@
 import { backupFileName, createBackup, parseBackup } from "./backup.js";
 import { closeOnOutsideClick, pickTextFile, showToast } from "./dialogs.js";
-import { createFileArea, historyKey, recoveryMessage, toAccelerator, whenShown } from "./desktop.js";
+import { createFileArea, historyKey, recoveryMessage, whenShown } from "./desktop.js";
 import { mergeTrackers, newBoardNote } from "./board-merge.js";
 import { boardSearchText, findSprint, findTask, mapTasks, removeSprint, updateSprint } from "./board.js";
 import { createBoardView } from "./board-view.js";
 import { NoteEditor } from "./editor.js";
 import { formatEditedDate } from "./format.js";
-import { applyShortcutTitles, globalCombo, matchHotkey, setCustomKeys } from "./hotkeys.js";
+import { applyShortcutTitles, matchHotkey, setCustomKeys } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isEmptyNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, stepNote } from "./model.js";
 import { mergeNote } from "./merge.js";
@@ -28,7 +28,6 @@ const VIEWPORT_MARGIN_PX = 8;
 const IS_MAC = /mac/i.test(navigator.userAgentData?.platform ?? navigator.platform);
 const NARROW = matchMedia("(max-width: 699px)");
 const MERGE_CONFLICT_MESSAGE = "This note was also edited in another window. A paragraph you both changed now appears in both versions; for anything else, this window's change was kept.";
-const SHORTCUT_TAKEN_MESSAGE = "That key is already used by another app, so Notelet kept the previous one.";
 const SAVE_FAILED_MESSAGE = "Couldn't save your last change. Your text is still here — keep this tab open and try again, or export a backup.";
 
 const THEME_ICONS = {
@@ -82,7 +81,6 @@ async function main() {
   state.ui = loaded.ui;
   state.settings = loaded.settings;
   setCustomKeys(state.settings.hotkeys);
-  registerGlobalShortcut().catch(() => whenShown(document, window, () => showToast(SHORTCUT_TAKEN_MESSAGE)));
   showTheme(state.ui.theme);
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
@@ -97,8 +95,6 @@ async function main() {
   steps = createNavigation({ readView, showView });
   whenShown(document, window, () => showStartupNotice(recovery, loaded.notes.length === 0));
 }
-
-const registerGlobalShortcut = () => tauri.core.invoke("set_global_shortcut", { accelerator: toAccelerator(globalCombo()) });
 
 // shortcut: an edit typed under SAVE_DELAY_MS before Windows shuts down can be lost, since WebView2
 // is killed without a page event; fixing it needs a WM_QUERYENDSESSION hook in Rust.
@@ -808,19 +804,8 @@ const showHelp = () => openShortcuts({
 });
 
 function saveShortcuts(hotkeys) {
-  const previous = state.settings.hotkeys;
   adoptSettings({ ...state.settings, hotkeys });
   store.saveSettings(state.settings).catch(reportSaveError);
-  registerGlobalShortcut().catch(() => keepPreviousGlobalKey(previous));
-}
-
-// Windows refused the new global key, so the setting goes back to the key still registered.
-function keepPreviousGlobalKey(previousHotkeys) {
-  const { showHide: _refused, ...hotkeys } = state.settings.hotkeys;
-  const restored = Object.hasOwn(previousHotkeys, "showHide") ? { ...hotkeys, showHide: previousHotkeys.showHide } : hotkeys;
-  adoptSettings({ ...state.settings, hotkeys: restored });
-  store.saveSettings(state.settings).catch(reportSaveError);
-  showToast(SHORTCUT_TAKEN_MESSAGE);
 }
 
 // Changed shortcuts take effect at once, tooltips included.

@@ -57,8 +57,6 @@ const DEFAULT_HOTKEYS = [
   { group: "App", action: "import", label: "Import backup", alt: true, code: "KeyI" },
   { group: "App", action: "openFullPage", label: "Maximize / restore window", alt: true, code: "Enter" },
   { group: "App", action: "help", label: "Show or hide this list", mod: true, code: "Slash" },
-  // Registered with Windows, so it works while another app is in front.
-  { group: "App", action: "showHide", label: "Show / hide Notelet (from any app)", mod: true, alt: true, code: "KeyN", global: true },
 ];
 
 // Each shortcut has a stable id: its action, with 2 added for an action's second key.
@@ -117,9 +115,8 @@ const WINDOWS_ALT_KEYS = new Set(["KeyF", "KeyE", "F4", "Space", "Tab"]);
 // F1 to F12 type nothing, so they work without Ctrl or Alt.
 const FUNCTION_KEY = /^F\d+$/;
 
-export function reservedReason(combo, isMac, hotkey = null) {
+export function reservedReason(combo, isMac) {
   const label = hotkeyLabel(combo, isMac);
-  if (hotkey?.global && !combo.mod && !combo.alt) return "A key that works in every app needs Ctrl or Alt.";
   if (!combo.mod && !combo.alt && !FUNCTION_KEY.test(combo.code)) return `Add ${isMac ? "⌘ or ⌥" : "Ctrl or Alt"}, so the key doesn't just type.`;
   if (!isMac && combo.alt && combo.shift && !combo.mod) return "Alt+Shift switches the keyboard language on Windows.";
   if (combo.mod && !combo.alt && (combo.shift ? CHROME_MOD_SHIFT_KEYS : CHROME_MOD_KEYS).has(combo.code)) return `Chrome keeps ${label} for itself.`;
@@ -154,13 +151,6 @@ const KEY_NAMES = {
 const MAC_KEY_NAMES = { ...KEY_NAMES, Backspace: "⌫", Enter: "↩" };
 
 const keyName = (code, isMac) => (isMac ? MAC_KEY_NAMES : KEY_NAMES)[code] ?? code.replace(/^(Key|Digit|Numpad)/, "");
-
-// The key to register with Windows for showing Notelet, or null when the user removed it.
-export function globalCombo() {
-  const hotkey = activeHotkeys().find((candidate) => candidate.global);
-  if (hotkey.code === null) return null;
-  return { mod: Boolean(hotkey.mod), alt: Boolean(hotkey.alt), shift: Boolean(hotkey.shift), code: hotkey.code };
-}
 
 // An action's first key that is set; "no key" when the user removed them all.
 export function shortcutFor(action, isMac) {

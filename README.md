@@ -35,7 +35,6 @@
 - **Sprints in one note.** Every sprint and a Backlog live in one Sprints note: a points donut, goals per sprint and per month, drag-and-drop tasks and a rich-text note for each task.
 - **Keyboard first.** Every button has a shortcut, and you can change any of them.
 - **Back and forward.** The mouse's side buttons and Alt+← / Alt+→ step through screens.
-- **A keystroke away.** `Ctrl+Alt+N` shows or hides Notelet from any app; it waits in the system tray.
 - **Private.** Notes stay in one file on your PC. Export a backup file whenever you like.
 
 
@@ -75,7 +74,7 @@ Notelet is an independent project and is not affiliated with or endorsed by Appl
 2. Run it. Windows may warn about an unknown publisher the first time, because the installer is not code-signed: click **More info**, then **Run anyway**. It installs for your account only, so no admin rights are needed.
 3. Notelet opens, adds an icon to the system tray and starts with Windows from then on.
 
-Press `Ctrl+Alt+N` from any app to show or hide Notelet. Closing the window (X) only hides it; to quit, right-click the tray icon → **Quit**. Turn off **Start with Windows** in the same menu if you don't want it at login. The window remembers its size and place; `Alt+Enter` or the ⤢ button maximizes and restores it.
+Closing the window (X) only hides it; click the tray icon to bring it back. To quit, right-click the tray icon → **Quit**. Turn off **Start with Windows** in the same menu if you don't want it at login. The window remembers its size and place; `Alt+Enter` or the ⤢ button maximizes and restores it.
 
 ## Update
 
@@ -129,11 +128,10 @@ Press `Ctrl+/` (`⌘/` on Mac) for the full list, grouped by topic. Every button
 | Change case: lower, UPPER, Title | `Shift+F3` | `⇧F3` |
 | Back / Forward | mouse side buttons, `Alt+←` / `Alt+→` | mouse side buttons, `⌘[` / `⌘]` |
 | All shortcuts | `Ctrl+/` | `⌘/` |
-| Show / hide Notelet from any app | `Ctrl+Alt+N` | — |
 
 Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome kept a key for itself (Ctrl+N, Ctrl+Shift+T) Notelet uses Alt instead, the same keys as the extension had.
 
-**To change a shortcut**, click its key in the list and press the new one. Esc, Tab or a click elsewhere cancels; Backspace removes the key. Keys Windows keeps, and those Chrome kept, are refused; the show / hide key must use Ctrl or Alt, and a key another app holds is refused with a message; and a key another shortcut uses asks before taking it over. ↺ resets one shortcut; **Reset All to Default** resets them all.
+**To change a shortcut**, click its key in the list and press the new one. Esc, Tab or a click elsewhere cancels; Backspace removes the key. Keys Windows keeps, and those Chrome kept, are refused; a key another shortcut uses asks before taking it over. ↺ resets one shortcut; **Reset All to Default** resets them all.
 
 ## Development
 

@@ -43,10 +43,9 @@ test("every default in-app shortcut reaches the page", async () => {
     };
     addEventListener("keydown", window.__record, { capture: true });
   `);
-  const combos = HOTKEYS.filter((hotkey) => !hotkey.global);
-  for (const combo of combos) await app.press(combo);
+  for (const combo of HOTKEYS) await app.press(combo);
   const seen = new Set(await app.execute("removeEventListener('keydown', window.__record, { capture: true }); return window.__seen"));
-  const missing = combos.filter((combo) => !seen.has(comboName(combo))).map((combo) => `${combo.id} (${comboName(combo)})`);
+  const missing = HOTKEYS.filter((combo) => !seen.has(comboName(combo))).map((combo) => `${combo.id} (${comboName(combo)})`);
   assert.deepEqual(missing, []);
 });
 
