@@ -1,6 +1,6 @@
 [package]
 name = "notelet"
-version = "0.9.0"
+version = "0.10.0"
 description = "Lightweight notes with sprint tracking"
 edition = "2021"
 publish = false
