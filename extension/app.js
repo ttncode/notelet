@@ -5,6 +5,7 @@ import { mergeTrackers, newBoardNote } from "./board-merge.js";
 import { boardSearchText, findSprint, findTask, mapTasks, removeSprint, updateSprint } from "./board.js";
 import { createBoardView } from "./board-view.js";
 import { NoteEditor } from "./editor.js";
+import { createFind } from "./find.js";
 import { formatEditedDate } from "./format.js";
 import { applyShortcutTitles, matchHotkey, setCustomKeys } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
@@ -48,6 +49,7 @@ const written = new Map();
 const saves = createSaveScheduler({ delayMs: SAVE_DELAY_MS, maxWaitMs: SAVE_MAX_WAIT_MS, save: saveNow });
 const state = { currentId: null, mode: "notes", query: "", ui: null, settings: null };
 let editor;
+let find;
 let taskEditor;
 let layout;
 let boardView;
@@ -84,6 +86,7 @@ async function main() {
   showTheme(state.ui.theme);
   await removeStaleNotes();
   editor = new NoteEditor({ element: byId("editor"), isMac: IS_MAC, onChange: onEditorChange });
+  find = createFind({ bar: byId("find-bar"), editorElement: byId("editor"), scroller: byId("editor-scroll") });
   layout = setupLayout({ resizer: byId("resizer"), ui: state.ui, onUiChange: saveUiSoon });
   const taskNote = byId("task-note");
   taskEditor = new NoteEditor({ element: taskNote, isMac: IS_MAC, onChange: onTaskNoteChange });
@@ -208,6 +211,7 @@ function selectNote(id, { scrollTop = 0, reveal = true } = {}) {
   loadEditor(notes.get(id));
   renderAll();
   byId("editor-scroll").scrollTop = scrollTop;
+  find.showSearchMatches(state.query);
   if (reveal) layout.showEditor();
   saveUiSoon({ lastNoteId: id, scrollTop });
   navigation.replace();
@@ -282,8 +286,13 @@ function renderEditorPane({ whenIdle = false } = {}) {
   document.body.classList.toggle("has-note", Boolean(note));
   document.body.classList.toggle("viewing-deleted", inDeleted);
   editor.setReadOnly(inDeleted || !note);
+  if (isPlainNote(note)) find.refresh();
+  else find.close();
   renderNoteDetails(note, { whenIdle });
 }
+
+// The Sprints note shows its board, which find does not search.
+const isPlainNote = (note) => Boolean(note) && !note.board;
 
 function renderNoteDetails(note, { whenIdle = false } = {}) {
   const board = note?.board ?? null;
@@ -413,6 +422,7 @@ function openCreated(note) {
 function clearSearch() {
   state.query = "";
   byId("search").value = "";
+  find.clearSearchMatches();
 }
 
 function togglePin() {
@@ -653,6 +663,7 @@ function wireSidebar() {
   wireNoteDragging();
   byId("search").addEventListener("input", (event) => {
     state.query = event.target.value.trim().toLowerCase();
+    find.clearSearchMatches();
     renderList();
   });
 }
@@ -749,6 +760,10 @@ function clearDropMarks() {
 
 // Each returns false when it does not apply here, so the key keeps its normal meaning.
 const APP_HOTKEYS = {
+  findInNote: () => isPlainNote(notes.get(state.currentId)) && openNote(() => {
+    layout.showEditor();
+    find.open();
+  }),
   search: () => showListFrom(() => {
     layout.showList();
     byId("search").focus();
