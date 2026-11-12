@@ -78,7 +78,7 @@ Closing the window (X) only hides it; click the tray icon to bring it back. To q
 
 ## Update
 
-Notelet updates itself. Each time it starts it checks for a new version, installs it and reopens, so nothing is lost: any change you are typing is saved first. To check now, right-click the tray icon → **Check for updates**.
+Right-click the tray icon → **Check for updates**. If there is a new version, Notelet asks first, then installs it and reopens. Nothing is lost: any change you are typing is saved first.
 
 ## Moving from the Chrome extension
 

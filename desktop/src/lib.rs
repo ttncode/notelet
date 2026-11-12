@@ -9,7 +9,7 @@ use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow, WindowEvent};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt as _};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_updater::{Update, UpdaterExt};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
@@ -171,23 +171,32 @@ fn show_message(app: &AppHandle, text: String) {
     app.dialog().message(text).title("Notelet").show(|_| {});
 }
 
-/// At start a failed check stays silent and is retried next start; from the tray it says why.
-async fn check_for_update(app: AppHandle, from_tray: bool) {
+fn ask_to_install(app: &AppHandle, version: &str) -> bool {
+    app.dialog()
+        .message(format!(
+            "Notelet {version} is available (you have {}).\n\nDownload and install it now? Notelet restarts by itself.",
+            app.package_info().version
+        ))
+        .title("Notelet")
+        .buttons(MessageDialogButtons::OkCancelCustom("Install and restart".to_string(), "Later".to_string()))
+        .blocking_show()
+}
+
+async fn check_for_update(app: AppHandle) {
     let result = match app.updater() {
         Ok(updater) => updater.check().await,
         Err(error) => Err(error),
     };
     match result {
+        Ok(Some(update)) if !ask_to_install(&app, &update.version) => {}
         // Downloading first keeps the gap between the page's last save and the installer closing
         // the app to the install alone.
         Ok(Some(update)) => match update.download(|_, _| {}, || {}).await {
             Ok(bytes) => request_after_flush(&app, Pending::Update(Box::new(update), bytes)),
-            Err(error) if from_tray => show_message(&app, format!("Couldn't download the update: {error}")),
-            Err(_) => {}
+            Err(error) => show_message(&app, format!("Couldn't download the update: {error}")),
         },
-        Ok(None) if from_tray => show_message(&app, format!("Notelet {} is the latest version.", app.package_info().version)),
-        Err(error) if from_tray => show_message(&app, format!("Couldn't check for updates: {error}")),
-        _ => {}
+        Ok(None) => show_message(&app, format!("Notelet {} is the latest version.", app.package_info().version)),
+        Err(error) => show_message(&app, format!("Couldn't check for updates: {error}")),
     }
 }
 
@@ -233,7 +242,7 @@ fn build_tray(app: &AppHandle, autostart_on: bool) -> tauri::Result<()> {
         .on_menu_event(move |app, event| match event.id.as_ref() {
             "open" => show_main(app),
             "check-updates" => {
-                tauri::async_runtime::spawn(check_for_update(app.clone(), true));
+                tauri::async_runtime::spawn(check_for_update(app.clone()));
             }
             "autostart" => set_autostart(app, autostart.is_checked().unwrap_or(false)),
             "quit" => request_after_flush(app, Pending::Quit),
@@ -300,7 +309,6 @@ pub fn run() {
             if !std::env::args().any(|arg| arg == HIDDEN_ARG) {
                 show_main(&handle);
             }
-            tauri::async_runtime::spawn(check_for_update(handle, false));
             Ok(())
         })
         .run(tauri::generate_context!())
