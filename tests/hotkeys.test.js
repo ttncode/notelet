@@ -26,11 +26,12 @@ test("Chrome-reserved shortcuts use Alt fallbacks that avoid Windows' Alt+Shift 
   assert.equal(matchHotkey(key("KeyN", { altKey: true }), false), "newNote");
 });
 
-test("undo, both redo forms and search are matched", () => {
+test("undo, both redo forms, find in note and search are matched", () => {
   assert.equal(matchHotkey(key("KeyZ", { ctrlKey: true }), false), "undo");
   assert.equal(matchHotkey(key("KeyZ", { ctrlKey: true, shiftKey: true }), false), "redo");
   assert.equal(matchHotkey(key("KeyY", { ctrlKey: true }), false), "redo");
-  assert.equal(matchHotkey(key("KeyF", { ctrlKey: true }), false), "search");
+  assert.equal(matchHotkey(key("KeyF", { ctrlKey: true }), false), "findInNote");
+  assert.equal(matchHotkey(key("KeyF", { ctrlKey: true, shiftKey: true }), false), "search");
 });
 
 test("shortcuts the browser already handles are not matched", () => {
@@ -86,7 +87,7 @@ test("every button's shortcut is matched", () => {
 test("tooltips name each button's shortcut for the platform", () => {
   assert.equal(fillShortcuts("Delete note ({deleteNote})", false), "Delete note (Ctrl+Shift+Backspace)");
   assert.equal(fillShortcuts("Delete note ({deleteNote})", true), "Delete note (⌘⇧⌫)");
-  assert.equal(fillShortcuts("Search ({search}) · settings ({trackerSettings})", false), "Search (Ctrl+F) · settings (Ctrl+,)");
+  assert.equal(fillShortcuts("Search ({search}) · settings ({trackerSettings})", false), "Search (Ctrl+Shift+F) · settings (Ctrl+,)");
 });
 
 test("every shortcut has a group and each group is listed in one run, so help shows it once", () => {

@@ -59,14 +59,28 @@ test("Alt+N adds a note and Alt+1 / Alt+3 move between the list and the note", a
   await app.waitFor("return document.activeElement?.closest('#editor') !== null");
 });
 
-test("Ctrl+/ opens and closes the shortcut list; Ctrl+F goes to search", async () => {
+test("Ctrl+/ opens and closes the shortcut list; Ctrl+Shift+F goes to search", async () => {
   await app.press({ mod: true, code: "Slash" });
   await app.waitFor("return document.getElementById('help').open");
   await app.press({ mod: true, code: "Slash" });
   await app.waitFor("return !document.getElementById('help').open");
-  await app.press({ mod: true, code: "KeyF" });
+  await app.press({ mod: true, shift: true, code: "KeyF" });
   await app.waitFor("return document.activeElement?.id === 'search'");
   await app.press({ code: "Escape" });
+});
+
+test("Ctrl+F finds in the note, Enter steps and Esc leaves the match selected", async () => {
+  await newNoteInEditor("find me, then find me again");
+  await app.press({ mod: true, code: "KeyF" });
+  await app.waitFor("return document.activeElement?.classList.contains('find-input')");
+  await app.type("find");
+  await app.waitFor("return document.querySelector('.find-count').textContent === '1 of 2'");
+  await app.press({ code: "Enter" });
+  await app.waitFor("return document.querySelector('.find-count').textContent === '2 of 2'");
+  await app.press({ code: "Escape" });
+  await app.waitFor("return document.getElementById('find-bar').hidden");
+  assert.equal(await app.execute("return document.getSelection().toString()"), "find");
+  assert.equal(await app.execute("return document.activeElement?.id"), "editor");
 });
 
 test("Ctrl+Z undoes typing", async () => {

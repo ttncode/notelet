@@ -22,6 +22,7 @@ const DEFAULT_HOTKEYS = [
   // Word's key; nothing selected changes the word at the caret.
   { group: "Editing", action: "changeCase", label: "Change case: lower, UPPER, Title", shift: true, code: "F3" },
   { group: "Editing", action: "pastePlain", label: "Paste as plain text", mod: true, shift: true, code: "KeyV", native: true },
+  { group: "Editing", action: "findInNote", label: "Find in note", mod: true, code: "KeyF" },
   // VS Code's line keys.
   { group: "Lines", action: "copyLine", label: "Copy line (nothing selected)", mod: true, code: "KeyC", native: true },
   { group: "Lines", action: "cutLine", label: "Cut line (nothing selected)", mod: true, code: "KeyX", native: true },
@@ -43,7 +44,7 @@ const DEFAULT_HOTKEYS = [
   { group: "Notes", action: "deleteNote", label: "Delete note", mod: true, shift: true, code: "Backspace" },
   { group: "Notes", action: "recover", label: "Recover deleted note", alt: true, code: "KeyU" },
   { group: "Navigate", action: "focusList", label: "Go to notes list", alt: true, code: "Digit1" },
-  { group: "Navigate", action: "search", label: "Search notes", mod: true, code: "KeyF" },
+  { group: "Navigate", action: "search", label: "Search notes", mod: true, shift: true, code: "KeyF" },
   { group: "Navigate", action: "search", label: "Search notes", alt: true, code: "Digit2" },
   { group: "Navigate", action: "focusEditor", label: "Go to note", alt: true, code: "Digit3" },
   { group: "Navigate", action: "toggleSidebar", label: "Show / hide notes list", alt: true, code: "Digit0" },

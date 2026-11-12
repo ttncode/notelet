@@ -120,7 +120,8 @@ Press `Ctrl+/` (`⌘/` on Mac) for the full list, grouped by topic. Every button
 |---|---|---|
 | New note | `Alt+N` | `⌥N` |
 | Open Sprints | `Alt+S` | `⌥S` |
-| Search notes | `Ctrl+F` | `⌘F` |
+| Find in the note (Enter / Shift+Enter: next / previous, Esc: done) | `Ctrl+F` | `⌘F` |
+| Search notes; the note you open shows the matches | `Ctrl+Shift+F` | `⇧⌘F` |
 | Go to the notes list / the note | `Alt+1` / `Alt+3` | `⌥1` / `⌥3` |
 | Text styles menu | `Alt+A` | `⌥A` |
 | Checklist | `Ctrl+Shift+L` | `⇧⌘L` |

@@ -101,8 +101,8 @@ button:disabled { cursor: default; }
 .note-row:hover { background: var(--hover); }
 .note-row[aria-current="true"]::before, .note-row[aria-current="true"] + .note-row::before { display: none; }
 .note-row[aria-current="true"] { background: var(--selected); }
-/* The card clips an outline, so keyboard focus shows as a fill (or a ring on the open note). */
-.note-row:focus-visible { outline: none; background: var(--fill); }
+/* The card clips an outline, so keyboard focus shows as an inset ring; gray is left to the mouse. */
+.note-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
 .note-row[aria-current="true"]:focus-visible { background: var(--selected); box-shadow: inset 0 0 0 2px var(--accent); }
 .note-row.dragging { opacity: 0.45; }
 .note-row.drop-before { box-shadow: inset 0 3px 0 var(--accent) !important; }
@@ -135,6 +135,15 @@ body.viewing-deleted #format-button,
 body.viewing-deleted #checklist-button,
 body.viewing-deleted #pin-button,
 body:not(.viewing-deleted) #recover-button { display: none; }
+.find-bar { display: flex; align-items: center; gap: 0.25rem; padding: 0 0.75rem 0.5rem; }
+.find-input { flex: 1; min-width: 0; padding: 0.35rem 0.75rem; border: 0; border-radius: 0.6rem; background: var(--fill); color: var(--text); font: inherit; }
+.find-input:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.find-count { padding: 0 0.25rem; color: var(--secondary); font-size: 0.85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Same yellows in both themes, as in macOS; the current match stays readable with black text. */
+::highlight(find-match) { background-color: rgb(255 214 10 / 0.4); }
+::highlight(find-current) { background-color: #ffd60a; color: #000000; }
+::highlight(search-match) { background-color: rgb(255 214 10 / 0.3); }
+.find-lozenge { position: fixed; z-index: 10; padding: 0 3px; border-radius: 4px; background: #ffd60a; color: #000000; box-shadow: 0 1px 4px rgb(0 0 0 / 0.4); white-space: pre; pointer-events: none; }
 /* A 46rem column keeps lines readable on wide screens. */
 .editor-scroll { flex: 1; overflow-y: auto; padding: 0 max(clamp(1.5rem, 5vw, 3rem), (100% - 46rem) / 2) 4rem; }
 .note-date { margin: 0.25rem 0 1rem; text-align: center; font-size: 0.8rem; color: var(--secondary); }
@@ -353,7 +362,7 @@ label.form-row > input[type="text"]:focus { background: var(--fill); outline: no
   .note-row[aria-current="true"] { background: none; }
   .note-row[aria-current="true"]::before, .note-row[aria-current="true"] + .note-row::before { display: block; }
   .note-row[aria-current="true"]:hover { background: var(--hover); }
-  .note-row[aria-current="true"]:focus-visible { background: var(--fill); box-shadow: none; }
+  .note-row[aria-current="true"]:focus-visible { background: none; }
 }
 
 /* Motion after iPhone Notes: a step deeper slides the new screen in from the right while the old
@@ -368,6 +377,7 @@ label.form-row > input[type="text"]:focus { background: var(--fill); outline: no
   /* Opaque, so a sliding screen covers the one under it. */
   .editor-pane, .toolbar { background: var(--bg); }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  .find-bar:not([hidden]) { animation: 150ms var(--ease-ios) find-bar-in; }
   ::view-transition-group(*) { animation-duration: var(--step-duration); animation-timing-function: var(--ease-ios); }
   html[data-nav="forward"]::view-transition-new(pane) { animation: var(--step-duration) var(--ease-ios) both slide-in-from-right; box-shadow: -0.5rem 0 1.5rem rgb(0 0 0 / 0.2); }
   html[data-nav="forward"]::view-transition-old(pane) { animation: var(--step-duration) var(--ease-ios) both drift-out-left; }
@@ -403,6 +413,7 @@ label.form-row > input[type="text"]:focus { background: var(--fill); outline: no
   .format-menu:popover-open { opacity: 0; transform: scale(0.9); }
 }
 
+@keyframes find-bar-in { from { transform: translateY(-0.75rem); opacity: 0; } }
 @keyframes slide-in-from-right { from { transform: translateX(100%); } }
 @keyframes slide-out-to-right { to { transform: translateX(100%); } }
 @keyframes drift-out-left { to { transform: translateX(-30%); filter: brightness(0.8); } }
