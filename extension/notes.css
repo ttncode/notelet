@@ -103,6 +103,8 @@ button:disabled { cursor: default; }
 .note-row[aria-current="true"] { background: var(--selected); }
 /* The card clips an outline, so keyboard focus shows as an inset ring; gray is left to the mouse. */
 .note-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+/* The separator lines would cut the ring's top; .note-list outranks the narrow layout's separators on the open note. */
+.note-list .note-row:focus-visible::before, .note-list .note-row:focus-visible + .note-row::before { display: none; }
 .note-row[aria-current="true"]:focus-visible { background: var(--selected); box-shadow: inset 0 0 0 2px var(--accent); }
 .note-row.dragging { opacity: 0.45; }
 .note-row.drop-before { box-shadow: inset 0 3px 0 var(--accent) !important; }
