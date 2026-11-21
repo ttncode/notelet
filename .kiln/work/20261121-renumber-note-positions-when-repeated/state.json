@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "20261121-renumber-note-positions-when-repeated",
   "follows": "20261121-review-each-items-above-one-one",
-  "status": "reviewed",
+  "status": "shipped",
   "session_id": "0b73138a-cf32-4ba7-ac23-30a61cd6d8d6",
   "path": "bounded",
   "type": "fix",
@@ -143,5 +143,11 @@
     }
   ],
   "baseline": null,
-  "checklist": []
+  "checklist": [],
+  "opened": [
+    "https://github.com/ttncode/notelet/pull/105"
+  ],
+  "branches": {
+    ".": "fix/20261121-renumber-note-positions-when-repeated"
+  }
 }
