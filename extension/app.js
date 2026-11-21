@@ -704,10 +704,14 @@ const liveNotes = () => [...notes.values()].filter((note) => note.deletedAt === 
 
 function applyPlacement(id, placement) {
   if (!placement) return;
-  const updated = { ...notes.get(id), ...placement, updatedAt: Date.now() };
-  saves.cancel(id);
-  notes.set(id, updated);
-  persist([updated]).catch(reportSaveError);
+  const { renumbered = [], ...moved } = placement;
+  const updated = { ...notes.get(id), ...moved, updatedAt: Date.now() };
+  const spacedOut = renumbered.map(({ id: otherId, position }) => ({ ...notes.get(otherId), position }));
+  [updated, ...spacedOut].forEach((note) => {
+    saves.cancel(note.id);
+    notes.set(note.id, note);
+  });
+  persist([updated, ...spacedOut]).catch(reportSaveError);
   renderList();
 }
 

@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "id": "20261121-renumber-note-positions-when-repeated",
+  "follows": "20261121-review-each-items-above-one-one",
+  "status": "reviewed",
+  "session_id": "0b73138a-cf32-4ba7-ac23-30a61cd6d8d6",
+  "path": "bounded",
+  "type": "fix",
+  "auto": false,
+  "stage": "VERIFY",
+  "step": null,
+  "gates": {
+    "plan": {
+      "decision": "approved",
+      "artifact_sha": "3f491ac5f590c5c587f498d50e915f7c76c86c872008d297cade1e0adfa8ccff",
+      "answer": "ruled by auto mode, not by the user",
+      "by": "auto",
+      "at": "2026-11-21T07:01:10.322Z"
+    },
+    "review": {
+      "decision": "approved",
+      "artifact_sha": "9c96e2258f9925aee1d933e3080b7529d8ccffeaaa15a9e82398c819dc53267a",
+      "answer": "ruled by auto mode, not by the user",
+      "by": "auto",
+      "at": "2026-11-21T07:05:48.043Z"
+    }
+  },
+  "predicted": [
+    {
+      "path": "extension/model.js"
+    },
+    {
+      "path": "extension/app.js"
+    },
+    {
+      "path": "tests/model.test.js"
+    }
+  ],
+  "base": "10da06c82d4f1920b2252dcdac2559cc86786f8f",
+  "last_verified": "10da06c82d4f1920b2252dcdac2559cc86786f8f",
+  "dirty_at_open": [
+    ".gitignore"
+  ],
+  "verify": [
+    {
+      "id": "unit",
+      "cmd": "node --test \"tests/*.test.js\"",
+      "exit": 0,
+      "ms": 3504,
+      "range": "10da06c82d4f1920b2252dcdac2559cc86786f8f..10da06c82d4f1920b2252dcdac2559cc86786f8f",
+      "phase": "full",
+      "tree": "dfd84b0caf6f2e8dc57092c59b0489487d5042ef"
+    },
+    {
+      "id": "unit",
+      "cmd": "node --test \"tests/*.test.js\"",
+      "exit": 0,
+      "ms": 5446,
+      "range": "10da06c82d4f1920b2252dcdac2559cc86786f8f..10da06c82d4f1920b2252dcdac2559cc86786f8f",
+      "phase": "full",
+      "tree": "c4d51def7ef55c7beff22570b1672ac2d9ece5b2"
+    },
+    {
+      "id": "unit",
+      "cmd": "node --test \"tests/*.test.js\"",
+      "exit": 0,
+      "ms": 5467,
+      "range": "10da06c82d4f1920b2252dcdac2559cc86786f8f..10da06c82d4f1920b2252dcdac2559cc86786f8f",
+      "phase": "full",
+      "tree": "d2dae68ef2e8d411999997bc664560e1e58f422f"
+    },
+    {
+      "id": "unit",
+      "cmd": "node --test \"tests/*.test.js\"",
+      "exit": 0,
+      "ms": 5436,
+      "range": "10da06c82d4f1920b2252dcdac2559cc86786f8f..10da06c82d4f1920b2252dcdac2559cc86786f8f",
+      "phase": "full",
+      "tree": "d2dae68ef2e8d411999997bc664560e1e58f422f"
+    }
+  ],
+  "pass": 1,
+  "carry_over": [],
+  "displaced": [],
+  "rules": [
+    {
+      "stage": "plan",
+      "files": []
+    },
+    {
+      "stage": "review",
+      "files": []
+    }
+  ],
+  "knowledge": [],
+  "practices": [
+    {
+      "stage": "investigate",
+      "ids": []
+    },
+    {
+      "stage": "plan",
+      "ids": [
+        "planning-and-task-breakdown"
+      ]
+    },
+    {
+      "stage": "implement",
+      "ids": [
+        "incremental-implementation",
+        "test-driven-development",
+        "source-driven-development"
+      ]
+    },
+    {
+      "stage": "review",
+      "ids": [
+        "reviewer",
+        "blind-hunter",
+        "edge-case-hunter",
+        "verification-gap",
+        "intent-alignment",
+        "code-review-specialist",
+        "security-auditor",
+        "test-engineer"
+      ]
+    }
+  ],
+  "snapshots": [
+    {
+      "name": "task/0",
+      "commits": {
+        ".": "b0f4cd00bd081291b372678a6b2322d6e89dd861"
+      },
+      "at": "2026-11-21T07:01:10.353Z"
+    },
+    {
+      "name": "task/1",
+      "commits": {
+        ".": "eccd15004f3b33a015defde75724dc13727fe677"
+      },
+      "at": "2026-11-21T07:02:07.424Z"
+    }
+  ],
+  "baseline": null,
+  "checklist": []
+}
