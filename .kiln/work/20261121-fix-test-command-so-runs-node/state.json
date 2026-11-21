@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "20261121-fix-test-command-so-runs-node",
   "follows": "20261121-review-each-items-above-one-one",
-  "status": "reviewed",
+  "status": "shipped",
   "session_id": "0b73138a-cf32-4ba7-ac23-30a61cd6d8d6",
   "path": "bounded",
   "type": "ci",
@@ -142,5 +142,11 @@
     }
   ],
   "baseline": null,
-  "checklist": []
+  "checklist": [],
+  "opened": [
+    "https://github.com/ttncode/notelet/pull/103"
+  ],
+  "branches": {
+    ".": "ci/20261121-fix-test-command-so-runs-node"
+  }
 }
