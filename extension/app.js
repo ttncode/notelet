@@ -10,7 +10,7 @@ import { formatEditedDate } from "./format.js";
 import { applyShortcutTitles, matchHotkey, setCustomKeys } from "./hotkeys.js";
 import { setupLayout } from "./layout.js";
 import { EMPTY_BODY_HTML, EMPTY_NOTE_HTML, isBlankNote, isEmptyNote, isExpired, newNote, noteText, noteTitleOf, orderedGroups, placeNote, stepNote } from "./model.js";
-import { mergeNote } from "./merge.js";
+import { createOwnSaves, mergeNote } from "./merge.js";
 import { legacySections, normalizeSettings, sameSettings, upgradeNote } from "./sprint.js";
 import { openSprintSettings } from "./sprint-settings.js";
 import { sanitizeHtml } from "./sanitize.js";
@@ -44,8 +44,7 @@ const notes = new Map();
 // What storage last held for each note, as told by its change events: the base for merging
 // another window's save with edits this window has not saved yet.
 const synced = new Map();
-// What this window last wrote for each note, to recognise its own change events.
-const written = new Map();
+const ownSaves = createOwnSaves();
 const saves = createSaveScheduler({ delayMs: SAVE_DELAY_MS, maxWaitMs: SAVE_MAX_WAIT_MS, save: saveNow });
 const state = { currentId: null, mode: "notes", query: "", ui: null, settings: null };
 let editor;
@@ -363,8 +362,8 @@ function saveNow(id) {
 const flushSaves = () => saves.flush();
 
 function persist(changed) {
-  changed.forEach((note) => written.set(note.id, JSON.stringify(note)));
-  return store.saveNotes(changed);
+  const release = ownSaves.track(changed);
+  return store.saveNotes(changed).finally(release);
 }
 
 function reportSaveError(error) {
@@ -537,7 +536,7 @@ function applyRemoteChanges({ updated, removedIds, settings, theme }) {
 function acceptRemote(remote) {
   const base = synced.get(remote.id);
   synced.set(remote.id, remote);
-  if (written.get(remote.id) === JSON.stringify(remote)) return null;
+  if (ownSaves.isOwn(remote)) return null;
   const local = notes.get(remote.id);
   if (!local || !base || sameNote(local, base)) {
     notes.set(remote.id, remote);
@@ -704,10 +703,14 @@ const liveNotes = () => [...notes.values()].filter((note) => note.deletedAt === 
 
 function applyPlacement(id, placement) {
   if (!placement) return;
-  const updated = { ...notes.get(id), ...placement, updatedAt: Date.now() };
-  saves.cancel(id);
-  notes.set(id, updated);
-  persist([updated]).catch(reportSaveError);
+  const { renumbered = [], ...moved } = placement;
+  const updated = { ...notes.get(id), ...moved, updatedAt: Date.now() };
+  const spacedOut = renumbered.map(({ id: otherId, position }) => ({ ...notes.get(otherId), position }));
+  [updated, ...spacedOut].forEach((note) => {
+    saves.cancel(note.id);
+    notes.set(note.id, note);
+  });
+  persist([updated, ...spacedOut]).catch(reportSaveError);
   renderList();
 }
 

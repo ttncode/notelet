@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "20261121-review-each-items-above-one-one",
+  "status": "closed",
+  "session_id": "0b73138a-cf32-4ba7-ac23-30a61cd6d8d6",
+  "path": "spike",
+  "type": "chore",
+  "auto": false,
+  "stage": "IMPLEMENT",
+  "step": null,
+  "gates": {
+    "probe": {
+      "decision": "approved",
+      "artifact_sha": "fe2cd399046336dd32d030d1e40686ff07782845188db9328a8fcb32e3519da4",
+      "answer": "1. Approve these findings as written",
+      "by": "user",
+      "at": "2026-11-21T06:40:08.808Z"
+    }
+  },
+  "predicted": [],
+  "base": "10da06c82d4f1920b2252dcdac2559cc86786f8f",
+  "last_verified": "10da06c82d4f1920b2252dcdac2559cc86786f8f",
+  "dirty_at_open": [
+    ".gitignore"
+  ],
+  "verify": [],
+  "pass": 1,
+  "carry_over": [
+    {
+      "from_pass": 1,
+      "kind": "close",
+      "text": "1. Close this spike and open follow-up work for item 2, the test command: one line plus CI."
+    }
+  ],
+  "displaced": [],
+  "rules": [],
+  "knowledge": [
+    {
+      "tier": 0,
+      "terms": [
+        "acceptRemote",
+        "placeNote",
+        "importNotes",
+        "onChanged"
+      ],
+      "files": [
+        "extension/app.js",
+        "extension/desktop.js",
+        "extension/model.js",
+        "extension/store.js",
+        "tests/desktop.test.js",
+        "tests/model.test.js",
+        "tests/store.test.js"
+      ]
+    }
+  ],
+  "practices": [
+    {
+      "stage": "investigate",
+      "ids": [
+        "idea-refine"
+      ]
+    }
+  ],
+  "snapshots": [
+    {
+      "name": "task/0",
+      "commits": {
+        ".": "9cf58dbf6e4c3b146cac504070f6c0936099f6f8"
+      },
+      "at": "2026-11-21T06:40:08.841Z"
+    }
+  ]
+}
