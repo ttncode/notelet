@@ -66,7 +66,23 @@ export function placeNote(notes, { id, targetId, placement }) {
   const index = section.indexOf(target);
   const above = placement === "before" ? section[index - 1] : target;
   const below = placement === "before" ? target : section[index + 1];
-  return { position: positionBetween(above, below), pinned: target.pinned };
+  const position = positionBetween(above, below);
+  if (fitsBetween(position, { above, below })) return { position, pinned: target.pinned };
+  return spacedOut(section, { id, at: placement === "before" ? index : index + 1, pinned: target.pinned });
+}
+
+const fitsBetween = (position, { above, below }) => (!above || position < notePosition(above)) && (!below || position > notePosition(below));
+
+// Positions start as millisecond timestamps, so about 23 drops into a 1000 gap use up its
+// precision and the midpoint lands on a neighbour; the section is then spaced out again in its new
+// order. The spacing hangs down from the section's top note, so its positions stay on the
+// timestamp scale the other section, new notes and restored notes use.
+function spacedOut(section, { id, at, pinned }) {
+  const order = [...section.slice(0, at), { id }, ...section.slice(at)].map((entry) => entry.id);
+  const top = notePosition(section[0]) + (at === 0 ? POSITION_STEP : 0);
+  const positionAt = (index) => top - index * POSITION_STEP;
+  const renumbered = order.flatMap((noteId, index) => (noteId === id ? [] : [{ id: noteId, position: positionAt(index) }]));
+  return { position: positionAt(at), pinned, renumbered };
 }
 
 export function stepNote(notes, { id, step }) {

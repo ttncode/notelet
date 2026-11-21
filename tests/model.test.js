@@ -73,6 +73,55 @@ test("moving a note one step swaps it with its neighbour in the same section", (
   assert.equal(stepNote(notes, { id: "a", step: -1 }), null);
 });
 
+function applyPlacement(notes, id, { position, pinned, renumbered = [] }) {
+  const moved = new Map(renumbered.map((entry) => [entry.id, entry.position]));
+  return notes.map((existing) => {
+    if (existing.id === id) return { ...existing, position, pinned };
+    return moved.has(existing.id) ? { ...existing, position: moved.get(existing.id) } : existing;
+  });
+}
+
+const orderOf = (notes) => orderedGroups(notes).flatMap((group) => group.notes.map((entry) => entry.id));
+
+test("forty drops right under the top note all land second", () => {
+  let notes = [note({ id: "top", position: NOW }), note({ id: "under", position: NOW - 1000 })];
+  for (let drop = 0; drop < 40; drop += 1) {
+    const id = `n${drop}`;
+    notes = [...notes, note({ id, position: NOW - 5000 - drop })];
+    notes = applyPlacement(notes, id, placeNote(notes, { id, targetId: "top", placement: "after" }));
+    assert.equal(orderOf(notes)[1], id, `drop ${drop + 1}`);
+  }
+  notes = applyPlacement(notes, "n39", stepNote(notes, { id: "n39", step: 1 }));
+  assert.equal(orderOf(notes)[2], "n39");
+});
+
+test("a drop between two notes that share a position lands between them", () => {
+  const notes = [note({ id: "a", position: 10 }), note({ id: "b", position: 5 }), note({ id: "c", position: 5 }), note({ id: "m", position: 1 })];
+  const target = orderOf(notes).indexOf("b") < orderOf(notes).indexOf("c") ? "b" : "c";
+  const other = target === "b" ? "c" : "b";
+  const placed = applyPlacement(notes, "m", placeNote(notes, { id: "m", targetId: target, placement: "after" }));
+  assert.deepEqual(orderOf(placed), ["a", target, "m", other]);
+});
+
+test("renumbering stays inside the pinned section", () => {
+  const notes = [note({ id: "p1", pinned: true, position: 5 }), note({ id: "p2", pinned: true, position: 5 }), note({ id: "p3", pinned: true, position: 1 }), note({ id: "u", position: 5 })];
+  const [first] = orderOf(notes);
+  const result = placeNote(notes, { id: "p3", targetId: first, placement: "after" });
+  assert.ok(result.renumbered.length > 0);
+  assert.ok(result.renumbered.every((entry) => entry.id.startsWith("p")));
+});
+
+test("a renumbered note that is unpinned lands by its age, not at the bottom of the list", () => {
+  const pinned = [note({ id: "p1", pinned: true, position: NOW }), note({ id: "p2", pinned: true, position: NOW }), note({ id: "p3", pinned: true, position: NOW - 1 })];
+  const others = [note({ id: "older", position: NOW - 60_000 }), note({ id: "oldest", position: NOW - 120_000 })];
+  let notes = [...pinned, ...others];
+  const [first] = orderOf(notes);
+  notes = applyPlacement(notes, "p3", placeNote(notes, { id: "p3", targetId: first, placement: "after" }));
+  const second = orderOf(notes).find((id) => id !== first && id !== "p3");
+  notes = notes.map((existing) => (existing.id === second ? { ...existing, pinned: false } : existing));
+  assert.deepEqual(orderOf(notes).slice(-3), [second, "older", "oldest"]);
+});
+
 test("deleted notes expire after 30 days", () => {
   assert.equal(isExpired(note({ deletedAt: NOW - 31 * DAY_MS }), NOW), true);
   assert.equal(isExpired(note({ deletedAt: NOW - 29 * DAY_MS }), NOW), false);
