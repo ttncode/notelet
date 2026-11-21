@@ -9,7 +9,7 @@ Follows spike 20261121-review-each-items-above-one-one, finding F4 (audit item 2
 - Constraint: nothing else changes.
 
 ## What I found
-- `package.json:7` is `node --test tests/`. On Node 22.17.1 it fails: `Cannot find module '/home/ttndev/workspace/personal/notelet/tests'`.
+- `package.json:7` is `node --test tests/`. On Node 22.17.1 it fails: `Cannot find module '<repo>/tests'`.
 - `node --test "tests/*.test.js"` passes 214 of 214 on Node 22.17.1. Node 22 expands the quoted glob itself, so it does not depend on the shell (Windows CI uses pwsh/cmd for `npm test`).
 - `.github/workflows/ci.yml:18` and `.github/workflows/release.yml:16` pin `node-version: 20`.
 - Every test file is `tests/*.test.js`; `tests/dom.js` is a helper, not a test, and must not run as one. The glob excludes it.

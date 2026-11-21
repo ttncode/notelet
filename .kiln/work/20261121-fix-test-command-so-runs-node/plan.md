@@ -55,7 +55,7 @@
 - [ ] **Step 1: Run the current command to see it fail**
 
 Run: `npm test`
-Expected: FAIL with `Cannot find module '/home/ttndev/workspace/personal/notelet/tests'`
+Expected: FAIL with `Cannot find module '<repo>/tests'`
 
 - [ ] **Step 2: Set `"test": "node --test \"tests/*.test.js\""` in `package.json:7`; set `node-version: 22` in `.github/workflows/ci.yml:18` and `.github/workflows/release.yml:16`**
 
