@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "artifact_language": "en",
+  "repo": {
+    "kind": "single",
+    "root": null
+  },
+  "vcs": {
+    "provider": "github",
+    "protected": [
+      "main"
+    ],
+    "integration_branch": "main",
+    "branch_pattern": "${type}/${id}"
+  },
+  "tracker": {
+    "provider": "github"
+  },
+  "stack": {
+    "id": "node",
+    "cmd": {
+      "test": "node --test \"tests/*.test.js\"",
+      "test_fast": ""
+    },
+    "steps": [
+      {
+        "id": "unit",
+        "run": "${cmd.test}"
+      }
+    ]
+  },
+  "knowledge": {
+    "tier": 0
+  },
+  "auto": {
+    "bounded": true,
+    "full": true
+  },
+  "work": {
+    "committed": true
+  },
+  "rules": {
+    "budget_lines": 200
+  },
+  "implement": {
+    "mode": "inline"
+  },
+  "learnings": {
+    "read_from": []
+  }
+}
