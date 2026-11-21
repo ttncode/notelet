@@ -7,6 +7,26 @@ import { parseHtml } from "./model.js";
 
 const NO_CONFLICT = { conflict: false };
 
+// Every version of a note this window is still saving. A save's change event arrives before the
+// save settles, and an older save can finish after a newer one has started, so remembering only
+// the latest version would mistake this window's own older save for another window's.
+export function createOwnSaves() {
+  const inFlight = new Map();
+  const release = ([id, version]) => {
+    const versions = inFlight.get(id) ?? [];
+    versions.splice(versions.indexOf(version), 1);
+    if (versions.length === 0) inFlight.delete(id);
+  };
+  return {
+    track(notes) {
+      const entries = notes.map((note) => [note.id, JSON.stringify(note)]);
+      entries.forEach(([id, version]) => inFlight.set(id, [...(inFlight.get(id) ?? []), version]));
+      return () => entries.forEach(release);
+    },
+    isOwn: (note) => inFlight.get(note.id)?.includes(JSON.stringify(note)) ?? false,
+  };
+}
+
 function same(a, b) {
   if (a === b) return true;
   if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;

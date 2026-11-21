@@ -1,7 +1,62 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mergeBoard, mergeHtml, mergeNote, mergeSequence, mergeValue } from "../extension/merge.js";
+import { createOwnSaves, mergeBoard, mergeHtml, mergeNote, mergeSequence, mergeValue } from "../extension/merge.js";
+import { createFileArea } from "../extension/desktop.js";
+import { SCHEMA_VERSION, createStore } from "../extension/store.js";
+
+test("an older save that finishes after a newer one started is still this window's own", () => {
+  const saves = createOwnSaves();
+  const v1 = { id: "n", position: 90 };
+  const v2 = { id: "n", position: 80 };
+  const release1 = saves.track([v1]);
+  const release2 = saves.track([v2]);
+  assert.equal(saves.isOwn(v1), true);
+  release1();
+  assert.equal(saves.isOwn(v2), true);
+  release2();
+  assert.equal(saves.isOwn(v1), false);
+  assert.equal(saves.isOwn(v2), false);
+});
+
+test("the same version saved twice stays own until both saves settle; a version never saved is not own", () => {
+  const saves = createOwnSaves();
+  const v = { id: "n", position: 1 };
+  const first = saves.track([v]);
+  const second = saves.track([v]);
+  first();
+  assert.equal(saves.isOwn(v), true);
+  second();
+  assert.equal(saves.isOwn(v), false);
+  assert.equal(saves.isOwn({ id: "n", position: 2 }), false);
+});
+
+test("with the real file area, an overlapping older save's change event is recognised as own, and a failed save is released", async () => {
+  const base = { id: "n", html: "<h1>A</h1>", pinned: false, updatedAt: 1, deletedAt: null, position: 100 };
+  let failNext = false;
+  const invoke = (command) => {
+    if (command === "storage_load") return Promise.resolve({ data: { "note:n": base, schemaVersion: SCHEMA_VERSION }, recovered: null, damagedPath: null });
+    const fail = failNext;
+    return new Promise((resolve, reject) => setTimeout(() => (fail ? reject(new Error("disk full")) : resolve()), 30));
+  };
+  const store = createStore(createFileArea(invoke));
+  await store.load();
+  const saves = createOwnSaves();
+  const persist = (notes) => {
+    const release = saves.track(notes);
+    return store.saveNotes(notes).finally(release);
+  };
+  const seen = [];
+  store.onChange(({ updated }) => updated.forEach((remote) => seen.push(saves.isOwn(remote))));
+  const first = persist([{ ...base, position: 90, updatedAt: 2 }]);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  await Promise.all([first, persist([{ ...base, position: 80, updatedAt: 3 }])]);
+  assert.deepEqual(seen, [true, true]);
+  failNext = true;
+  const failed = { ...base, position: 70, updatedAt: 4 };
+  await assert.rejects(persist([failed]), /disk full/);
+  assert.equal(saves.isOwn(failed), false);
+});
 
 test("a value changed on one side only takes that change; both changed keeps this window's", () => {
   assert.deepEqual(mergeValue(1, 1, 2), { value: 2, conflict: false });
