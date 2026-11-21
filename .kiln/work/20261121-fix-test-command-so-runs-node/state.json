@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "id": "20261121-fix-test-command-so-runs-node",
+  "follows": "20261121-review-each-items-above-one-one",
+  "status": "reviewed",
+  "session_id": "0b73138a-cf32-4ba7-ac23-30a61cd6d8d6",
+  "path": "bounded",
+  "type": "ci",
+  "auto": false,
+  "stage": "VERIFY",
+  "step": null,
+  "gates": {
+    "plan": {
+      "decision": "approved",
+      "artifact_sha": "d909bc3111c71124ff3a5217abc16094cc98272dcf17075ad395787c41caf8f4",
+      "answer": "ruled by auto mode, not by the user",
+      "by": "auto",
+      "at": "2026-11-21T06:41:22.042Z"
+    },
+    "review": {
+      "decision": "approved",
+      "artifact_sha": "1fa7f61f2c61dcbac845a14ee0989d3280d305254ecd6b0aa77524302ed2852b",
+      "answer": "ruled by auto mode, not by the user",
+      "by": "auto",
+      "at": "2026-11-21T06:44:50.515Z"
+    }
+  },
+  "predicted": [
+    {
+      "path": "package.json"
+    },
+    {
+      "path": ".github/workflows/ci.yml"
+    },
+    {
+      "path": ".github/workflows/release.yml"
+    }
+  ],
+  "base": "10da06c82d4f1920b2252dcdac2559cc86786f8f",
+  "last_verified": "10da06c82d4f1920b2252dcdac2559cc86786f8f",
+  "dirty_at_open": [
+    ".gitignore"
+  ],
+  "verify": [
+    {
+      "id": "unit",
+      "cmd": "node --test \"tests/*.test.js\"",
+      "exit": 0,
+      "ms": 3598,
+      "range": "10da06c82d4f1920b2252dcdac2559cc86786f8f..10da06c82d4f1920b2252dcdac2559cc86786f8f",
+      "phase": "full",
+      "tree": "dfd84b0caf6f2e8dc57092c59b0489487d5042ef"
+    },
+    {
+      "id": "unit",
+      "cmd": "node --test \"tests/*.test.js\"",
+      "exit": 0,
+      "ms": 5455,
+      "range": "10da06c82d4f1920b2252dcdac2559cc86786f8f..10da06c82d4f1920b2252dcdac2559cc86786f8f",
+      "phase": "full",
+      "tree": "65e3189a01c595dc7702427d08be04076745be4d"
+    },
+    {
+      "id": "unit",
+      "cmd": "node --test \"tests/*.test.js\"",
+      "exit": 0,
+      "ms": 5474,
+      "range": "10da06c82d4f1920b2252dcdac2559cc86786f8f..10da06c82d4f1920b2252dcdac2559cc86786f8f",
+      "phase": "full",
+      "tree": "65e3189a01c595dc7702427d08be04076745be4d"
+    }
+  ],
+  "pass": 1,
+  "carry_over": [],
+  "displaced": [],
+  "rules": [
+    {
+      "stage": "plan",
+      "files": []
+    },
+    {
+      "stage": "review",
+      "files": []
+    }
+  ],
+  "knowledge": [],
+  "practices": [
+    {
+      "stage": "investigate",
+      "ids": []
+    },
+    {
+      "stage": "plan",
+      "ids": [
+        "planning-and-task-breakdown"
+      ]
+    },
+    {
+      "stage": "implement",
+      "ids": [
+        "incremental-implementation",
+        "test-driven-development",
+        "source-driven-development",
+        "ci-cd-and-automation"
+      ]
+    },
+    {
+      "stage": "review",
+      "ids": [
+        "reviewer",
+        "blind-hunter",
+        "edge-case-hunter",
+        "verification-gap",
+        "intent-alignment",
+        "code-review-specialist",
+        "security-auditor",
+        "test-engineer"
+      ]
+    },
+    {
+      "stage": "ship",
+      "ids": [
+        "git-workflow-and-versioning",
+        "shipping-and-launch"
+      ]
+    }
+  ],
+  "snapshots": [
+    {
+      "name": "task/0",
+      "commits": {
+        ".": "320e798bf757f16f72d8f1f0841d0702a396719a"
+      },
+      "at": "2026-11-21T06:41:22.082Z"
+    },
+    {
+      "name": "task/1",
+      "commits": {
+        ".": "fc6c94f88f861e7a39033d4b5bb652b72e154aac"
+      },
+      "at": "2026-11-21T06:42:14.921Z"
+    }
+  ],
+  "baseline": null,
+  "checklist": []
+}
