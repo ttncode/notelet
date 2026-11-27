@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { History } from "../extension/history.js";
+import { History } from "../app/history.js";
 
 const state = (html) => ({ html, caret: html.length });
 

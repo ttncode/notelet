@@ -1,8 +1,8 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseHtml } from "../extension/model.js";
-import { DEFAULT_STATUSES, migrateTargetNote } from "../extension/sprint.js";
+import { parseHtml } from "../app/model.js";
+import { DEFAULT_STATUSES, migrateTargetNote } from "../app/sprint.js";
 
 const UPDATED_2026 = new Date(2026, 9, 1).getTime();
 const TODAY = new Date(2026, 9, 8);

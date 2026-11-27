@@ -1,9 +1,11 @@
+import { codeBlockLines, languageOf } from "./code-block.js";
+
 // What a copy from a note puts on the clipboard. The plain text marks list items the way
 // Markdown and Notes do; the HTML keeps the structure but none of the page's colours or sizes,
 // so the text takes on the look of wherever it is pasted.
-const BLOCKS = new Set(["H1", "H2", "H3", "P", "PRE", "DIV"]);
+const BLOCKS = new Set(["H1", "H2", "H3", "P", "PRE", "BLOCKQUOTE", "DIV"]);
 const LISTS = new Set(["UL", "OL"]);
-const STYLED_LINES = "h1, h2, h3, pre";
+const STYLED_LINES = "h1, h2, h3, pre, blockquote";
 const NESTED_INDENT = "    ";
 const HTML_MARKERS = { checked: "☑ ", unchecked: "☐ ", dashed: "– " };
 const TEXT_NODE = 3;
@@ -28,7 +30,29 @@ export function selectedContent(range) {
 const styledLineAround = (node) => (node.nodeType === TEXT_NODE ? node.parentElement : node).closest(STYLED_LINES);
 
 export function clipboardText(root) {
-  return linesOf(root, "").join("\n");
+  return linesOf(withCodeFences(root), "").join("\n");
+}
+
+// Code copied along with other lines is marked as Markdown code, so it stays code where it is
+// pasted; code copied on its own stays bare, ready for a terminal.
+function withCodeFences(root) {
+  if ([...root.children].every((block) => block.tagName === "PRE")) return root;
+  const copy = root.cloneNode(true);
+  const firstLines = [...copy.children].filter((block) => block.tagName === "PRE" && block.previousElementSibling?.tagName !== "PRE");
+  for (const firstLine of firstLines) {
+    const lines = codeBlockLines(firstLine);
+    const language = languageOf(lines);
+    if (!language) continue;
+    firstLine.before(fenceLine(copy, `\`\`\`${language}`));
+    lines.at(-1).after(fenceLine(copy, "```"));
+  }
+  return copy;
+}
+
+function fenceLine(root, text) {
+  const line = root.ownerDocument.createElement("p");
+  line.textContent = text;
+  return line;
 }
 
 // Notes keep line breaks three ways: separate blocks, <br>, and "\n" inside the text (what a

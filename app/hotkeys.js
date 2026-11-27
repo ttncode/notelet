@@ -6,6 +6,7 @@ const DEFAULT_HOTKEYS = [
   { group: "Text styles", action: "body", label: "Body", mod: true, shift: true, code: "KeyB" },
   // Notes uses Shift+Cmd+M, but Ctrl+Shift+M is Chrome's profile menu.
   { group: "Text styles", action: "monostyled", label: "Monostyled", mod: true, shift: true, code: "KeyK" },
+  { group: "Text styles", action: "quote", label: "Block quote", mod: true, code: "Quote" },
   { group: "Text styles", action: "formatMenu", label: "Text styles menu", alt: true, code: "KeyA" },
   { group: "Formatting", action: "bold", label: "Bold", mod: true, code: "KeyB", native: true },
   { group: "Formatting", action: "italic", label: "Italic", mod: true, code: "KeyI", native: true },
@@ -120,8 +121,8 @@ export function reservedReason(combo, isMac) {
   const label = hotkeyLabel(combo, isMac);
   if (!combo.mod && !combo.alt && !FUNCTION_KEY.test(combo.code)) return `Add ${isMac ? "⌘ or ⌥" : "Ctrl or Alt"}, so the key doesn't just type.`;
   if (!isMac && combo.alt && combo.shift && !combo.mod) return "Alt+Shift switches the keyboard language on Windows.";
-  if (combo.mod && !combo.alt && (combo.shift ? CHROME_MOD_SHIFT_KEYS : CHROME_MOD_KEYS).has(combo.code)) return `Chrome keeps ${label} for itself.`;
-  if (!isMac && combo.alt && !combo.mod && !combo.shift && WINDOWS_ALT_KEYS.has(combo.code)) return `${label} is kept by Chrome or Windows.`;
+  if (combo.mod && !combo.alt && (combo.shift ? CHROME_MOD_SHIFT_KEYS : CHROME_MOD_KEYS).has(combo.code)) return `${label} is reserved by the browser engine Notelet runs on.`;
+  if (!isMac && combo.alt && !combo.mod && !combo.shift && WINDOWS_ALT_KEYS.has(combo.code)) return `${label} is reserved by Windows or the browser engine.`;
   return null;
 }
 

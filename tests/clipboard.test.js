@@ -1,9 +1,9 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clipboardHtml, clipboardText, selectedContent } from "../extension/clipboard.js";
-import { parseHtml } from "../extension/model.js";
-import { sanitizeHtml } from "../extension/sanitize.js";
+import { clipboardHtml, clipboardText, selectedContent } from "../app/clipboard.js";
+import { parseHtml } from "../app/model.js";
+import { sanitizeHtml } from "../app/sanitize.js";
 
 const NOTE = '<h1>Todo</h1><h2>Heading</h2><p>Body <b>bold</b> <a href="https://example.com">link</a></p>'
   + '<ul class="checklist"><li data-checked="true">Done item</li><li data-checked="false">Open item</li></ul>'
@@ -87,4 +87,11 @@ test("inline styles left in a note by the browser stay out of the copied HTML", 
   const html = clipboardHtml(root('<p>a <span style="font-size: 26px; color: red">b</span></p><ul class="dashed"><li>c</li></ul>'));
   assert.doesNotMatch(html, /font-size|color/);
   assert.match(html, /<ul[^>]*style="list-style: none; padding-left: 0"/);
+});
+
+test("code copied with other lines is fenced with its language; code alone and plain code are not", () => {
+  const code = '<pre data-language="php">echo 1;</pre><pre data-language="php">echo 2;</pre>';
+  assert.equal(clipboardText(root(`<p>Run:</p>${code}<p>Done</p>`)), ["Run:", "```php", "echo 1;", "echo 2;", "```", "Done"].join("\n"));
+  assert.equal(clipboardText(root(code)), "echo 1;\necho 2;");
+  assert.equal(clipboardText(root("<p>Run:</p><pre>ls</pre>")), "Run:\nls");
 });

@@ -1,10 +1,10 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseHtml } from "../extension/model.js";
+import { parseHtml } from "../app/model.js";
 import {
   ABOVE, BELOW, duplicateLine, indentText, insertLine, lineOf, moveLines, nextLine, outdentText, previousLine, removeLine,
-} from "../extension/lines.js";
+} from "../app/lines.js";
 
 const NOTE = "<h1>Title</h1><p>one</p><ul class=\"checklist\"><li data-checked=\"true\">a<ul><li>nested</li></ul></li><li data-checked=\"false\">b</li></ul><p>two</p>";
 const note = (html = NOTE) => parseHtml(html).body;

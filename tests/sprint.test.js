@@ -1,11 +1,11 @@
 import "./dom.js";
-import { DEFAULT_SECTIONS } from "../extension/sections.js";
+import { DEFAULT_SECTIONS } from "../app/sections.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULT_STATUSES, addDays, defaultSettings, isIsoDate, isValidSprint, isValidStatus, parsePoints,
   normalizeSettings, sameSettings, statusFor, upgradeNote, validateSprintSettings,
-} from "../extension/sprint.js";
+} from "../app/sprint.js";
 
 test("an unknown status shows as the first", () => {
   assert.equal(statusFor(DEFAULT_STATUSES, "gone").id, "s1");

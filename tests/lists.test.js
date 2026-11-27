@@ -1,10 +1,11 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseHtml } from "../extension/model.js";
+import { parseHtml } from "../app/model.js";
 import {
-  checkboxForShortcut, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType, splitParagraphsIntoItems,
-} from "../extension/lists.js";
+  blockTagForShortcut, checkboxForShortcut, endsWithTwoEmptyLines, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeTwoEmptyLines, removeLeadingText,
+  setBlockType, splitParagraphsIntoItems,
+} from "../app/lists.js";
 
 function paragraphWith(...children) {
   const doc = parseHtml("");
@@ -150,4 +151,24 @@ test("an item without pasted lines is left alone", () => {
   const body = parseHtml("<ul><li>a</li></ul>").body;
   assert.equal(splitParagraphsIntoItems(body.querySelector("li")).size, 0);
   assert.equal(body.innerHTML, "<ul><li>a</li></ul>");
+});
+
+test("Markdown heading shortcuts give their line style", () => {
+  assert.equal(blockTagForShortcut("#"), "h1");
+  assert.equal(blockTagForShortcut("##"), "h2");
+  assert.equal(blockTagForShortcut("###"), "h3");
+  assert.equal(blockTagForShortcut("####"), null);
+  assert.equal(blockTagForShortcut("#tag"), null);
+});
+
+test("a Monostyled block ending in two empty lines loses them and keeps the rest", () => {
+  const block = parseHtml("<pre>abc<br><br>def<br><br><br></pre>").body.firstChild;
+  assert.equal(endsWithTwoEmptyLines(block), true);
+  removeTwoEmptyLines(block);
+  assert.equal(block.outerHTML, "<pre>abc<br><br>def</pre>");
+});
+
+test("one empty line at the end of a Monostyled block is kept as part of the code", () => {
+  assert.equal(endsWithTwoEmptyLines(parseHtml("<pre>abc<br><br></pre>").body.firstChild), false);
+  assert.equal(endsWithTwoEmptyLines(parseHtml("<pre>abc<br>def</pre>").body.firstChild), false);
 });

@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { crc32, deflateSync } from "node:zlib";
 
-const SIZES = [16, 32, 48, 128];
+// 32 is the window's page icon, 128 the README's.
+const SIZES = [32, 128];
 const SAMPLES_PER_AXIS = 4;
 const BACKGROUND = [232, 169, 0];
 const FOREGROUND = [255, 255, 255];
@@ -12,7 +13,7 @@ const LINES = [
   { top: 0.62, bottom: 0.7, left: 0.26, right: 0.58 },
 ];
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-const OUT_DIR = new URL("../extension/icons/", import.meta.url);
+const OUT_DIR = new URL("../app/icons/", import.meta.url);
 // Source for `npx tauri icon`, which builds the desktop app's .ico and PNGs from it.
 const DESKTOP_SOURCE = new URL("../desktop/icons/source.png", import.meta.url);
 const DESKTOP_SOURCE_SIZE = 1024;

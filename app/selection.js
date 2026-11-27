@@ -1,4 +1,4 @@
-const BLOCK_SELECTOR = "h1,h2,h3,p,pre,li,div";
+const BLOCK_SELECTOR = "h1,h2,h3,p,pre,blockquote,li,div";
 
 export function caretElement(root) {
   const selection = document.getSelection();

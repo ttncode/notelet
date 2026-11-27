@@ -23,7 +23,7 @@ export function createStore(area) {
 async function load(area, today) {
   const stored = await area.get(null);
   const version = stored[SCHEMA_KEY] ?? 0;
-  if (version > SCHEMA_VERSION) throw new Error("These notes were saved by a newer version of Notelet. Update the extension to open them.");
+  if (version > SCHEMA_VERSION) throw new Error("These notes were saved by a newer version of Notelet. Update Notelet to open them.");
   const settings = stored[SETTINGS_KEY] ? normalizeSettings(stored[SETTINGS_KEY]) : defaultSettings();
   const storedNotes = Object.entries(stored).filter(([key]) => key.startsWith(NOTE_PREFIX)).map(([, note]) => note);
   const notes = version < SCHEMA_VERSION ? upgradeNotes(storedNotes, { stored, settings, today }) : storedNotes;

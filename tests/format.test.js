@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatDayMonth, formatEditedDate, formatRowDate } from "../extension/format.js";
+import { formatDayMonth, formatEditedDate, formatRowDate } from "../app/format.js";
 
 const NOW = new Date(2026, 9, 8, 22, 30).getTime();
 

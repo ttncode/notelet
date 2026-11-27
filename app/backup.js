@@ -23,7 +23,7 @@ export function parseBackup(text) {
   if (data === undefined) return failure("This file is not a valid backup: it is not JSON.");
   if (data?.app !== BACKUP_APP) return failure("This file is not a Notelet backup.");
   if (typeof data.version === "number" && data.version > BACKUP_VERSION) {
-    return failure("This backup comes from a newer version of Notelet. Update the extension, then import again.");
+    return failure("This backup comes from a newer version of Notelet. Update Notelet, then import again.");
   }
   if (!SUPPORTED_VERSIONS.has(data.version) || !Array.isArray(data.notes)) return failure("This backup is damaged and cannot be imported.");
   if (data.version >= 2 && !isValidSettings(data.settings)) return failure("The status settings in this backup are damaged, so nothing was imported.");

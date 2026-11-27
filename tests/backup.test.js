@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { backupFileName, createBackup, parseBackup } from "../extension/backup.js";
-import { DEFAULT_SECTIONS } from "../extension/sections.js";
-import { defaultSettings } from "../extension/sprint.js";
+import { backupFileName, createBackup, parseBackup } from "../app/backup.js";
+import { DEFAULT_SECTIONS } from "../app/sections.js";
+import { defaultSettings } from "../app/sprint.js";
 
 const SETTINGS = defaultSettings();
 

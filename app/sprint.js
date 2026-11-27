@@ -19,7 +19,7 @@ const DONE_STATUS_ID = "s5";
 const MAX_LABEL_LENGTH = 20;
 const STATUS_ID = /^[a-z0-9-]{1,24}$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
-const LINE_BLOCKS = "h1,h2,h3,p,pre,li,div";
+const LINE_BLOCKS = "h1,h2,h3,p,pre,blockquote,li,div";
 const TARGET_LINE = /^Target:\s*(\d+(?:\.\d+)?)$/i;
 const TITLE_RANGE = /(\d{1,2})\/(\d{1,2})\s*[-–]\s*(\d{1,2})\/(\d{1,2})/;
 

@@ -1,24 +1,33 @@
 import { nextCase, wordAt } from "./case.js";
 import { clipboardHtml, clipboardText, selectedContent } from "./clipboard.js";
+import { codeBlockLines, fenceLanguage, setLanguage, unifyCodeLanguages } from "./code-block.js";
+import { refreshCodeColours } from "./code-highlight.js";
+import { createCodeToolbar } from "./code-toolbar.js";
 import { History } from "./history.js";
 import { matchHotkey } from "./hotkeys.js";
 import {
-  ABOVE, BELOW, duplicateLine, endingInsideText, indentText, insertLine, lineOf, moveLines, nextLine, outdentText, previousLine, removeLine, selectedLines, withoutNextLineStart,
+  ABOVE, BELOW, duplicateLine, endingInsideText, indentCodeLines, indentText, insertLine, lineOf, moveLines, nextLine, outdentCodeLines, outdentText, previousLine, removeLine,
+  selectedLines, withoutNextLineStart,
 } from "./lines.js";
 import {
-  checkboxForShortcut, clearItemState, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeLeadingText, setBlockType, splitParagraphsIntoItems,
+  blockTagForShortcut, checkboxForShortcut, clearItemState, endsWithTwoEmptyLines, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeTwoEmptyLines,
+  removeLeadingText, setBlockType, splitParagraphsIntoItems,
 } from "./lists.js";
 import { EMPTY_NOTE_HTML } from "./model.js";
 import { linkableUrl, normalizeLineBreaks, plainTextToHtml, sanitizeHtml, sanitizePastedHtml } from "./sanitize.js";
 import {
   caretBlock, caretElement, caretOffset, isCaretAtEndOf, placeCaret, placeCaretAfter, placeCaretAtEnd, placeCaretAtStart, restoreSelection, saveSelection, setCaretOffset,
 } from "./selection.js";
+import { isStraightQuote, smartQuote, substitutionBefore } from "./typography.js";
 
 const TYPING_PAUSE_MS = 1000;
 const IME_PROCESS_KEYCODE = 229;
 const URL_BEFORE_CARET = /(https?:\/\/[^\s<>"]+)$/;
 const HEADING_TAGS = new Set(["H1", "H2", "H3"]);
-const BLOCK_ACTIONS = { title: "h1", heading: "h2", subheading: "h3", body: "p", monostyled: "pre" };
+const BLOCK_ACTIONS = { title: "h1", heading: "h2", subheading: "h3", body: "p", monostyled: "pre", quote: "blockquote" };
+const TEXT_LINES = "h1,h2,h3,p,pre,blockquote,li";
+// Where typed text stays exactly as typed.
+const LITERAL_TEXT = "pre, a";
 const INLINE_ACTIONS = { bold: "bold", italic: "italic", underline: "underline", strikethrough: "strikeThrough" };
 const LIST_ACTIONS = new Set(["bulleted", "dashed", "numbered", "checklist"]);
 const LINE_DIRECTIONS = {
@@ -43,11 +52,13 @@ export class NoteEditor {
   #savedRange = null;
   #itemBeforeEnter = null;
   #emptyHtml = EMPTY_NOTE_HTML;
+  #codeToolbar;
 
   constructor({ element, isMac, onChange }) {
     this.#element = element;
     this.#isMac = isMac;
     this.#onChange = onChange;
+    this.#codeToolbar = createCodeToolbar({ editorElement: element, onPickLanguage: (block, language) => this.#setCodeLanguage(block, language) });
     document.execCommand("defaultParagraphSeparator", false, "p");
     this.#listen();
   }
@@ -60,6 +71,8 @@ export class NoteEditor {
     this.#history.clear();
     this.#lastInput = { at: 0, kind: "" };
     this.#savedRange = null;
+    this.#codeToolbar.update();
+    refreshCodeColours(this.#element);
   }
 
   // Text merged from another window replaces what is shown; the caret stays in the paragraph it
@@ -72,6 +85,7 @@ export class NoteEditor {
     this.#checkpoint();
     this.#element.innerHTML = html;
     this.#savedRange = null;
+    refreshCodeColours(this.#element);
     if (!hadFocus || !caret) return;
     const blocks = [...this.#element.children];
     const distance = (candidate) => Math.abs(blocks.indexOf(candidate) - caret.index);
@@ -82,6 +96,7 @@ export class NoteEditor {
 
   setReadOnly(readOnly) {
     this.#element.contentEditable = String(!readOnly);
+    this.#codeToolbar.update();
   }
 
   isFocused() {
@@ -92,7 +107,7 @@ export class NoteEditor {
   focus() {
     this.#element.focus();
     if (!this.#savedRange) {
-      const blocks = this.#element.querySelectorAll("h1,h2,h3,p,pre,li");
+      const blocks = this.#element.querySelectorAll(TEXT_LINES);
       placeCaretAtEnd(blocks[blocks.length - 1] ?? this.#element);
       return;
     }
@@ -103,7 +118,7 @@ export class NoteEditor {
   // A new note's empty title line is where typing starts.
   focusStart() {
     this.#element.focus();
-    const blocks = [...this.#element.querySelectorAll("h1,h2,h3,p,pre,li")];
+    const blocks = [...this.#element.querySelectorAll(TEXT_LINES)];
     const firstEmpty = blocks.find((block) => block.textContent === "");
     placeCaretAtStart(firstEmpty ?? this.#element.firstElementChild ?? this.#element);
   }
@@ -162,8 +177,15 @@ export class NoteEditor {
       return;
     }
     const lines = this.#selectedLines();
-    if (lines.length > 1) {
-      lines.forEach(command === "indent" ? indentText : outdentText);
+    const selection = document.getSelection();
+    if (lines.length > 1 || !selection.isCollapsed) {
+      const range = selection.getRangeAt(0);
+      const shiftCode = command === "indent" ? indentCodeLines : outdentCodeLines;
+      const shiftText = command === "indent" ? indentText : outdentText;
+      for (const line of lines) {
+        if (line.tagName === "PRE") shiftCode(line, range);
+        else shiftText(line);
+      }
       return;
     }
     const [line] = lines;
@@ -240,7 +262,10 @@ export class NoteEditor {
     element.addEventListener("copy", (event) => this.#onCopy(event));
     element.addEventListener("cut", (event) => this.#onCut(event));
     element.addEventListener("paste", (event) => this.#onPaste(event));
-    document.addEventListener("selectionchange", () => this.#rememberSelection());
+    document.addEventListener("selectionchange", () => {
+      this.#rememberSelection();
+      this.#codeToolbar.update();
+    });
   }
 
   #onKeydown(event) {
@@ -255,6 +280,8 @@ export class NoteEditor {
       this.#onTab(event);
     } else if (event.key === " ") {
       this.#onSpace(event);
+    } else if (isStraightQuote(event.key) && !event.ctrlKey && !event.metaKey) {
+      this.#typeSmartQuote(event);
     }
   }
 
@@ -281,7 +308,8 @@ export class NoteEditor {
   #onEnter(event) {
     this.#linkifyBeforeCaret();
     const block = caretBlock(this.#element);
-    if (!block || !HEADING_TAGS.has(block.tagName) || !isCaretAtEndOf(block)) return;
+    if (!block || this.#startCodeBlock(event, block) || this.#leaveQuoteOrCode(event, block)) return;
+    if (!HEADING_TAGS.has(block.tagName) || !isCaretAtEndOf(block)) return;
     event.preventDefault();
     this.#checkpoint();
     if (!document.getSelection().isCollapsed) document.execCommand("delete");
@@ -292,10 +320,61 @@ export class NoteEditor {
     this.#changed();
   }
 
+  // "```" or "```php" then Enter on a body line starts a Monostyled block, as in Markdown.
+  #startCodeBlock(event, block) {
+    const language = isBodyLine(block) ? fenceLanguage(block.textContent) : null;
+    if (language === null) return false;
+    event.preventDefault();
+    this.#checkpoint();
+    block.replaceChildren(document.createElement("br"));
+    placeCaretAtStart(block);
+    this.#retype([block], "pre");
+    this.#labelCodeAtCaret(language);
+    this.#changed();
+    return true;
+  }
+
+  #labelCodeAtCaret(language) {
+    const block = caretElement(this.#element)?.closest("pre");
+    if (block && language) setLanguage(codeBlockLines(block), language);
+  }
+
+  #setCodeLanguage(block, language) {
+    if (!block?.isConnected) return;
+    this.#checkpoint();
+    setLanguage(codeBlockLines(block), language);
+    this.#changed();
+    this.focus();
+  }
+
+  // As Enter on an empty list item leaves the list, Enter on an empty quote line goes back to body
+  // text. Code may hold a blank line, so a Monostyled block is left by a second one at its end.
+  #leaveQuoteOrCode(event, block) {
+    if (!isCaretAtEndOf(block)) return false;
+    const isEmptyQuote = block.tagName === "BLOCKQUOTE" && block.textContent === "";
+    const isLastCodeLine = block.tagName === "PRE" && block.nextElementSibling?.tagName !== "PRE";
+    const isEmptyCode = isLastCodeLine && block.textContent === "";
+    if (!isEmptyQuote && !isEmptyCode && !(isLastCodeLine && endsWithTwoEmptyLines(block))) return false;
+    event.preventDefault();
+    this.#checkpoint();
+    if (isEmptyQuote || isEmptyCode) {
+      this.#retype([block], "p");
+    } else {
+      removeTwoEmptyLines(block);
+      const paragraph = document.createElement("p");
+      paragraph.append(document.createElement("br"));
+      block.after(paragraph);
+      placeCaretAtStart(paragraph);
+    }
+    this.#changed();
+    return true;
+  }
+
   #onTab(event) {
     event.preventDefault();
     this.#checkpoint();
-    if (caretElement(this.#element)?.closest("li") || this.#selectedLines().length > 1) {
+    // Tab over a selection indents its lines, as in VS Code, instead of typing over it.
+    if (caretElement(this.#element)?.closest("li") || !document.getSelection().isCollapsed) {
       this.#indentLine(event.shiftKey ? "outdent" : "indent");
     } else if (!event.shiftKey) {
       document.execCommand("insertText", false, "\t");
@@ -304,7 +383,7 @@ export class NoteEditor {
   }
 
   #onSpace(event) {
-    if (this.#applyListShortcut(event)) return;
+    if (this.#applyLineShortcut(event) || this.#substituteBeforeCaret(event)) return;
     const link = this.#linkifyBeforeCaret();
     if (!link) return;
     event.preventDefault();
@@ -315,25 +394,61 @@ export class NoteEditor {
   }
 
   // Notes turns "- ", "* ", "1. " at the start of a body line into a list, and "[ ] " at the
-  // start of a list item into a checklist item. The space goes in first so Ctrl+Z gives the text back.
-  #applyListShortcut(event) {
+  // start of a list item into a checklist item; "# " to "### " and "``` " or "```php " give a
+  // heading or Monostyled line, as in Markdown. The space goes in first so Ctrl+Z gives the text back.
+  #applyLineShortcut(event) {
     const block = caretBlock(this.#element);
     if (!block || !document.getSelection().isCollapsed) return false;
     const prefix = block.textContent.slice(0, caretOffset(block));
-    const isItem = block.tagName === "LI";
-    const kind = !isItem && (block.tagName === "P" || block.tagName === "DIV") ? listKindForShortcut(prefix) : null;
-    const checkbox = isItem ? checkboxForShortcut(prefix) : null;
-    if (!kind && !checkbox) return false;
+    const kind = isBodyLine(block) ? listKindForShortcut(prefix) : null;
+    const language = isBodyLine(block) ? fenceLanguage(prefix) : null;
+    const tag = isBodyLine(block) ? blockTagForShortcut(prefix) ?? (language === null ? null : "pre") : null;
+    const checkbox = block.tagName === "LI" ? checkboxForShortcut(prefix) : null;
+    if (!kind && !tag && !checkbox) return false;
     event.preventDefault();
     document.execCommand("insertText", false, " ");
     this.#checkpoint();
     removeLeadingText(block, prefix.length + 1);
     if (!block.textContent && !block.querySelector("br")) block.append(document.createElement("br"));
     placeCaretAtStart(block);
-    if (kind) this.#toggleList(kind);
+    if (tag) {
+      this.#retype([block], tag);
+      this.#labelCodeAtCaret(language);
+    } else if (kind) this.#toggleList(kind);
     else this.#makeChecklistItem(block, checkbox.checked);
     this.#changed();
     return true;
+  }
+
+  // "->" then space becomes "→", as macOS Text Replacement does. The space goes in first so
+  // Ctrl+Z gives back what was typed.
+  #substituteBeforeCaret(event) {
+    const { focusNode: node, focusOffset: offset, isCollapsed } = document.getSelection();
+    if (!isCollapsed || node?.nodeType !== Node.TEXT_NODE || !this.#element.contains(node) || node.parentElement.closest(LITERAL_TEXT)) return false;
+    const substitution = substitutionBefore(node.data.slice(0, offset));
+    if (!substitution) return false;
+    event.preventDefault();
+    document.execCommand("insertText", false, " ");
+    this.#checkpoint();
+    const { focusNode: text, focusOffset: afterSpace } = document.getSelection();
+    const start = afterSpace - 1 - substitution.typed.length;
+    text.replaceData(start, substitution.typed.length, substitution.replacement);
+    placeCaret(text, start + substitution.replacement.length + 1);
+    this.#changed();
+    return true;
+  }
+
+  // macOS smart quotes: the straight quote goes in first so Ctrl+Z gives it back.
+  #typeSmartQuote(event) {
+    if (caretElement(this.#element)?.closest(LITERAL_TEXT)) return;
+    event.preventDefault();
+    document.execCommand("insertText", false, event.key);
+    const { focusNode: text, focusOffset: offset } = document.getSelection();
+    if (text?.nodeType !== Node.TEXT_NODE) return;
+    this.#checkpoint();
+    text.replaceData(offset - 1, 1, smartQuote(event.key, text.data[offset - 2]));
+    placeCaret(text, offset);
+    this.#changed();
   }
 
   #makeChecklistItem(item, checked) {
@@ -465,8 +580,11 @@ export class NoteEditor {
     if (opensLink) window.open(link.href, "_blank", "noopener");
   }
 
+  // Block quote toggles, as in Notes; the other styles only set.
   #setBlock(tag) {
-    this.#retype(this.#selectedLines(), tag);
+    const lines = this.#selectedLines();
+    const isQuoteOff = tag === "blockquote" && lines.length > 0 && lines.every((line) => line.tagName === "BLOCKQUOTE");
+    this.#retype(lines, isQuoteOff ? "p" : tag);
   }
 
   #retype(lines, tag) {
@@ -551,7 +669,7 @@ export class NoteEditor {
 
   #ensureContent() {
     const element = this.#element;
-    if (element.textContent !== "" || element.querySelector("h1,h2,h3,p,pre,li")) return;
+    if (element.textContent !== "" || element.querySelector(TEXT_LINES)) return;
     element.innerHTML = this.#emptyHtml;
     placeCaretAtStart(element.firstElementChild);
   }
@@ -605,7 +723,10 @@ export class NoteEditor {
 
   #changed() {
     this.#stripBrowserStyling();
+    unifyCodeLanguages(this.#element);
     this.#onChange(this.#element.innerHTML);
+    this.#codeToolbar.update();
+    refreshCodeColours(this.#element);
   }
 
   // Chrome pins the old look on text with inline styles when lines merge, a list changes type or
@@ -620,6 +741,8 @@ export class NoteEditor {
     restoreSelection(saved);
   }
 }
+
+const isBodyLine = (block) => block.tagName === "P" || block.tagName === "DIV";
 
 function listKind(list) {
   if (list.tagName === "OL") return "numbered";

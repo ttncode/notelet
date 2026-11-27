@@ -1,6 +1,6 @@
 // Line editing works on blocks: a paragraph, heading, Monostyled block or list item is one line.
 // shortcut: a block broken by Shift+Enter or "\n" still moves as one line; split on those if users ask.
-export const LINE_SELECTOR = "h1,h2,h3,p,pre,li,div";
+export const LINE_SELECTOR = "h1,h2,h3,p,pre,blockquote,li,div";
 
 export const ABOVE = -1;
 export const BELOW = 1;
@@ -50,6 +50,44 @@ export function outdentText(line) {
   first.textContent = first.textContent.slice(1);
   return true;
 }
+
+// A Monostyled block holds several lines, split by <br> or "\n"; Tab over a selection in it
+// indents each of those the selection touches, as in VS Code. Inserting into the text nodes keeps
+// the selection on the same text.
+export function indentCodeLines(block, range) {
+  for (const { node, offset } of codeLineStarts(block, range)) node.insertData(offset, "\t");
+}
+
+export function outdentCodeLines(block, range) {
+  for (const { node, offset } of codeLineStarts(block, range)) if (node.data[offset] === "\t") node.deleteData(offset, 1);
+}
+
+// Where each line with text starts, last first so edits don't move the ones still to come. A
+// selection that ends at the very start of a line leaves that line out.
+function codeLineStarts(block, range) {
+  const starts = [];
+  let atLineStart = true;
+  const walker = block.ownerDocument.createTreeWalker(block, 5);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.nodeName === "BR") {
+      atLineStart = true;
+    } else if (node.nodeType === TEXT_NODE && node.length > 0) {
+      [...node.data].forEach((character, index) => {
+        if (index === 0 ? atLineStart : node.data[index - 1] === "\n") starts.push({ node, offset: index });
+      });
+      atLineStart = node.data.endsWith("\n");
+    }
+  }
+  const touched = starts.filter((start, index) => {
+    const next = starts[index + 1];
+    const startsBeforeEnd = range.comparePoint(start.node, start.offset) <= 0 && !isPoint(start, range.endContainer, range.endOffset);
+    const endsAfterStart = !next || (range.comparePoint(next.node, next.offset) >= 0 && !isPoint(next, range.startContainer, range.startOffset));
+    return startsBeforeEnd && endsAfterStart;
+  });
+  return touched.reverse();
+}
+
+const isPoint = (point, node, offset) => point.node === node && point.offset === offset;
 
 export function lineOf(root, node) {
   const line = (node.nodeType === TEXT_NODE ? node.parentElement : node).closest(LINE_SELECTOR);

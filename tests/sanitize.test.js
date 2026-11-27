@@ -1,8 +1,8 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseHtml } from "../extension/model.js";
-import { linkableUrl, normalizeLineBreaks, plainTextToHtml, sanitizeHtml, sanitizePastedHtml } from "../extension/sanitize.js";
+import { parseHtml } from "../app/model.js";
+import { linkableUrl, normalizeLineBreaks, plainTextToHtml, sanitizeHtml, sanitizePastedHtml } from "../app/sanitize.js";
 
 test("keeps the editor's own structure unchanged", () => {
   const html = '<h1>T</h1><h2>H</h2><h3>S</h3><p>a <b>b</b> <i>c</i> <u>d</u> <s>e</s><br></p>'
@@ -117,4 +117,14 @@ test("punctuation typed after a URL stays out of the link", () => {
   assert.equal(linkableUrl("https://a.com/x),"), "https://a.com/x");
   assert.equal(linkableUrl("https://a.com/wiki/A_(b)"), "https://a.com/wiki/A_(b)");
   assert.equal(linkableUrl("https://a.com/?q=1"), "https://a.com/?q=1");
+});
+
+test("a one-line block quote is kept; a quote of several paragraphs comes in as the paragraphs", () => {
+  assert.equal(sanitizeHtml("<blockquote>said <b>so</b></blockquote>"), "<blockquote>said <b>so</b></blockquote>");
+  assert.equal(sanitizePastedHtml("<blockquote><p>one</p><p>two</p></blockquote>"), "<p>one</p><p>two</p>");
+});
+
+test("a code line keeps a known language and drops an unknown one", () => {
+  assert.equal(sanitizeHtml('<pre data-language="php">x</pre>'), '<pre data-language="php">x</pre>');
+  assert.equal(sanitizeHtml('<pre data-language="evil">x</pre>'), "<pre>x</pre>");
 });

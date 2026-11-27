@@ -78,7 +78,7 @@ function recordKey(event, { id, keys, isMac }) {
   const reason = reservedReason(combo, isMac);
   if (reason) return { message: { id, text: reason } };
   const other = hotkeysWith(keys).find((hotkey) => hotkey.id !== id && sameCombo(hotkey, combo));
-  if (other && !isEditable(other)) return { message: { id, text: `${hotkeyLabel(combo, isMac)} is ${other.label}, which Chrome handles.` } };
+  if (other && !isEditable(other)) return { message: { id, text: `${hotkeyLabel(combo, isMac)} is ${other.label}, which is built in.` } };
   if (other) return { message: { id, combo, otherId: other.id, text: `${hotkeyLabel(combo, isMac)} is used by ${other.label}.` } };
   return { keys: withKey(keys, id, combo) };
 }
@@ -127,7 +127,7 @@ function keyCell(hotkey, { isMac, changed, isRecording }) {
   const label = hotkeyLabel(hotkey, isMac) || "None";
   if (!isEditable(hotkey)) {
     cell.append(createElement("span", "key-fixed", label));
-    cell.title = "Chrome handles this key";
+    cell.title = "Built-in key";
     return cell;
   }
   const key = actionButton({ className: `key-button${changed ? " key-changed" : ""}${isRecording ? " key-recording" : ""}`, action: "record", text: isRecording ? "Press keys…" : label });

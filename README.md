@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="extension/icons/icon-128.png" width="88" alt="">
+  <img src="app/icons/icon-128.png" width="88" alt="">
 </p>
 
 <h1 align="center">Notelet</h1>
@@ -33,6 +33,8 @@
 
 - **Feels like Notes.** Title, Heading and Body styles, bulleted, dashed, numbered and check lists, pinned notes, Recently Deleted, light and dark themes. In a narrow window it switches to the iPhone layout and its slide between screens.
 - **Sprints in one note.** Every sprint and a Backlog live in one Sprints note: a points donut, goals per sprint and per month, drag-and-drop tasks and a rich-text note for each task.
+- **Type it plainly, see it typeset.** `->`, `<-`, `==>`, `<=` and friends become →, ←, ⇒, ≤ drawn in JetBrains Mono's style; `--` becomes —, `...` becomes …, and quotes curl. `# `, `- ` and ```` ```php ```` start a heading, a list or a code block, and Ctrl+Z right after gives back what you typed.
+- **Code blocks.** Pick the language from the block's corner for syntax colours, copy the block with one click, and copy it with other text to get a Markdown code fence.
 - **Keyboard first.** Every button has a shortcut, and you can change any of them.
 - **Back and forward.** The mouse's side buttons and Alt+← / Alt+→ step through screens.
 - **Private.** Notes stay in one file on your PC. Export a backup file whenever you like.
@@ -51,7 +53,7 @@ Title, Heading and Subheading, **bold**, *italic*, underline and ~~strikethrough
 
 ### The iPhone layout
 
-In a narrow window, such as the popup, Notelet shows one screen at a time and slides between them like iPhone Notes.
+In a narrow window, Notelet shows one screen at a time and slides between them like iPhone Notes.
 
 <table>
   <tr>
@@ -79,14 +81,6 @@ Closing the window (X) only hides it; click the tray icon to bring it back. To q
 ## Update
 
 Right-click the tray icon → **Check for updates**. If there is a new version, Notelet asks first, then installs it and reopens. Nothing is lost: any change you are typing is saved first.
-
-## Moving from the Chrome extension
-
-1. In the extension, export a backup (**⋯** above the notes list → **Export**).
-2. Install the desktop app.
-3. On first start it offers **Import backup**; choose the file. Or use **⋯** → **Import** any time.
-
-Notes, deleted notes, sprints, statuses, settings and custom shortcuts come across. The theme and the notes list width don't; set them again once. You can remove the extension afterwards.
 
 ## Back up and restore
 
@@ -125,6 +119,7 @@ Press `Ctrl+/` (`⌘/` on Mac) for the full list, grouped by topic. Every button
 | Go to the notes list / the note | `Alt+1` / `Alt+3` | `⌥1` / `⌥3` |
 | Text styles menu | `Alt+A` | `⌥A` |
 | Checklist | `Ctrl+Shift+L` | `⇧⌘L` |
+| Block quote | `Ctrl+'` | `⌘'` |
 | Move line / duplicate line | `Alt+↑↓` / `Ctrl+Alt+Shift+↑↓` | `⌥↑↓` / `⌘⌥⇧↑↓` |
 | Change case: lower, UPPER, Title | `Shift+F3` | `⇧F3` |
 | Back / Forward | mouse side buttons, `Alt+←` / `Alt+→` | mouse side buttons, `⌘[` / `⌘]` |
@@ -132,9 +127,9 @@ Press `Ctrl+/` (`⌘/` on Mac) for the full list, grouped by topic. Every button
 
 `Ctrl+click` (`⌘`-click on Mac) opens a link in a note; a plain click only places the caret.
 
-Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome kept a key for itself (Ctrl+N, Ctrl+Shift+T) Notelet uses Alt instead, the same keys as the extension had.
+Text styles follow Notes for Mac with Ctrl in place of Cmd. A few actions use Alt instead, such as `Alt+N` for a new note.
 
-**To change a shortcut**, click its key in the list and press the new one. Esc, Tab or a click elsewhere cancels; Backspace removes the key. Keys Windows keeps, and those Chrome kept, are refused; a key another shortcut uses asks before taking it over. ↺ resets one shortcut; **Reset All to Default** resets them all.
+**To change a shortcut**, click its key in the list and press the new one. Esc, Tab or a click elsewhere cancels; Backspace removes the key. Keys Windows keeps, and browser keys such as `Ctrl+N`, `Ctrl+T` and `Ctrl+W`, are refused; a key another shortcut uses asks before taking it over. ↺ resets one shortcut; **Reset All to Default** resets them all.
 
 ## Development
 
@@ -142,10 +137,11 @@ Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome kept a 
 npm install
 npm test                  # unit tests for the UI modules
 node tools/make-icons.mjs # regenerate icons, then: npx tauri icon desktop/icons/source.png -o desktop/icons
+python3 tools/build-arrow-font.py …  # rebuild the arrow font; see the script for the steps
 npm run tauri dev         # run the app (Windows, with Rust and the MSVC build tools)
 ```
 
-The UI lives in `extension/` and runs unchanged inside the Tauri shell in `desktop/`. CI on Windows runs the unit tests, `cargo test`, clippy, a release build and end-to-end tests that press every shortcut in the built app. Working in WSL, where the Windows toolchain is not available, push a branch and let CI build it.
+The UI lives in `app/` (HTML, CSS and plain ES modules, no build step) and runs inside the Tauri shell in `desktop/`. CI on Windows runs the unit tests, `cargo test`, clippy, a release build and end-to-end tests that press every shortcut in the built app. Working in WSL, where the Windows toolchain is not available, push a branch and let CI build it.
 
 Pushing a `v*` tag builds the installer, signs the update, and publishes the release with the `latest.json` the app checks.
 

@@ -1,9 +1,9 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createOwnSaves, mergeBoard, mergeHtml, mergeNote, mergeSequence, mergeValue } from "../extension/merge.js";
-import { createFileArea } from "../extension/desktop.js";
-import { SCHEMA_VERSION, createStore } from "../extension/store.js";
+import { createOwnSaves, mergeBoard, mergeHtml, mergeNote, mergeSequence, mergeValue } from "../app/merge.js";
+import { createFileArea } from "../app/desktop.js";
+import { SCHEMA_VERSION, createStore } from "../app/store.js";
 
 test("an older save that finishes after a newer one started is still this window's own", () => {
   const saves = createOwnSaves();

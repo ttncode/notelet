@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HOTKEYS, fillShortcuts, hotkeyLabel, matchHotkey, normalizeCustomKeys, reservedReason, setCustomKeys } from "../extension/hotkeys.js";
+import { HOTKEYS, fillShortcuts, hotkeyLabel, matchHotkey, normalizeCustomKeys, reservedReason, setCustomKeys } from "../app/hotkeys.js";
 
 const key = (code, modifiers = {}) => ({
   code, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, isComposing: false, ...modifiers,
@@ -112,10 +112,10 @@ test("a changed shortcut matches its new key, and a removed one matches nothing"
 
 test("keys the browser or Windows keep, and keys without Ctrl or Alt, are refused with a reason", () => {
   const combo = (code, modifiers) => ({ mod: false, alt: false, shift: false, code, ...modifiers });
-  assert.match(reservedReason(combo("KeyT", { mod: true }), false), /Chrome keeps Ctrl\+T/);
-  assert.match(reservedReason(combo("KeyN", { mod: true, shift: true }), false), /Chrome keeps/);
+  assert.match(reservedReason(combo("KeyT", { mod: true }), false), /Ctrl\+T is reserved by the browser engine/);
+  assert.match(reservedReason(combo("KeyN", { mod: true, shift: true }), false), /reserved by the browser engine/);
   assert.match(reservedReason(combo("KeyK", { alt: true, shift: true }), false), /keyboard language/);
-  assert.match(reservedReason(combo("KeyF", { alt: true }), false), /Chrome or Windows/);
+  assert.match(reservedReason(combo("KeyF", { alt: true }), false), /Windows or the browser engine/);
   assert.match(reservedReason(combo("KeyK", {}), false), /Ctrl or Alt/);
   assert.equal(reservedReason(combo("F3", { shift: true }), false), null);
   assert.equal(reservedReason(combo("KeyK", { mod: true, alt: true }), false), null);
@@ -142,5 +142,5 @@ test("no shortcut works from other apps, and a key saved for the old one is drop
 });
 
 test("in-app key rules are unchanged", () => {
-  assert.equal(reservedReason(plainCombo("KeyN", { mod: true }), false), "Chrome keeps Ctrl+N for itself.");
+  assert.equal(reservedReason(plainCombo("KeyN", { mod: true }), false), "Ctrl+N is reserved by the browser engine Notelet runs on.");
 });
