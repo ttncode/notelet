@@ -1,9 +1,9 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clipboardHtml, clipboardText, selectedContent } from "../extension/clipboard.js";
-import { parseHtml } from "../extension/model.js";
-import { sanitizeHtml } from "../extension/sanitize.js";
+import { clipboardHtml, clipboardText, selectedContent } from "../app/clipboard.js";
+import { parseHtml } from "../app/model.js";
+import { sanitizeHtml } from "../app/sanitize.js";
 
 const NOTE = '<h1>Todo</h1><h2>Heading</h2><p>Body <b>bold</b> <a href="https://example.com">link</a></p>'
   + '<ul class="checklist"><li data-checked="true">Done item</li><li data-checked="false">Open item</li></ul>'

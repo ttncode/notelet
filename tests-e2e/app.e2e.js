@@ -1,7 +1,7 @@
 // Runs against the built app through tauri-driver (see .github/workflows/ci.yml); not part of npm test.
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { HOTKEYS } from "../extension/hotkeys.js";
+import { HOTKEYS } from "../app/hotkeys.js";
 import { newSession } from "./webdriver.js";
 
 const APPLICATION = process.env.NOTELET_APP ?? "desktop/target/release/notelet.exe";

@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import {
   BACKLOG_ID, currentSprint, findTask, isValidBoard, monthProgress, monthsOf, moveOpenTasks, moveTask, newBoard, newSprint, removeSprint,
   pointsByStatus, setMonthGoal, sprintDays, sprintName, sprintPhase, sprintProgress, boardSearchText,
-} from "../extension/board.js";
-import { DEFAULT_STATUSES } from "../extension/sprint.js";
+} from "../app/board.js";
+import { DEFAULT_STATUSES } from "../app/sprint.js";
 
 const DONE = "s5";
 const QC = "s4";

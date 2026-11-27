@@ -1,8 +1,8 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseHtml } from "../extension/model.js";
-import { findMatches } from "../extension/find.js";
+import { parseHtml } from "../app/model.js";
+import { findMatches } from "../app/find.js";
 
 const note = (html) => parseHtml(html).body;
 const spans = (matches) => matches.map(({ start, end }) => [start.node.data, start.offset, end.node.data, end.offset]);

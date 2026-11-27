@@ -2,8 +2,8 @@
 #
 #   pip install fonttools brotli
 #   # JetBrainsMono-2.304.zip from https://github.com/JetBrains/JetBrainsMono/releases, unzipped
-#   python3 tools/build-arrow-font.py fonts/ttf/JetBrainsMono-Regular.ttf extension/fonts/notelet-arrows-regular.woff2 Regular
-#   python3 tools/build-arrow-font.py fonts/ttf/JetBrainsMono-Bold.ttf extension/fonts/notelet-arrows-bold.woff2 Bold
+#   python3 tools/build-arrow-font.py fonts/ttf/JetBrainsMono-Regular.ttf app/fonts/notelet-arrows-regular.woff2 Regular
+#   python3 tools/build-arrow-font.py fonts/ttf/JetBrainsMono-Bold.ttf app/fonts/notelet-arrows-bold.woff2 Bold
 #
 # A code point added here also goes in the unicode-range of "Notelet Arrows" in notes.css.
 import sys

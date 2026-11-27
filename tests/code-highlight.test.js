@@ -1,8 +1,8 @@
 import "./dom.js";
-import "../extension/vendor/prism.js";
+import "../app/vendor/prism.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HIGHLIGHT_GROUPS, tokenRanges } from "../extension/code-highlight.js";
+import { HIGHLIGHT_GROUPS, tokenRanges } from "../app/code-highlight.js";
 
 const coloured = (text, language) => tokenRanges(text, language).map(({ group, start, end }) => [group, text.slice(start, end)]);
 
@@ -33,6 +33,6 @@ test("plain text and unknown languages get no colours", () => {
 
 test("every colour group has a CSS rule", async () => {
   const { readFile } = await import("node:fs/promises");
-  const css = await readFile(new URL("../extension/notes.css", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/notes.css", import.meta.url), "utf8");
   for (const group of HIGHLIGHT_GROUPS) assert.match(css, new RegExp(`::highlight\\(code-${group}\\)`), group);
 });

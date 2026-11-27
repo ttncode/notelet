@@ -1,7 +1,7 @@
 // Glue between the UI and the Tauri desktop shell. Nothing here touches window.__TAURI__ at
 // load time, so the tests can import it in Node.
 
-// A stand-in for chrome.storage.local backed by one JSON file that Rust writes. The whole map
+// A key-value storage area backed by one JSON file that Rust writes. The whole map
 // is kept in memory and rewritten on every change; writes run one after another so an older
 // map never lands on disk after a newer one.
 export function createFileArea(invoke) {

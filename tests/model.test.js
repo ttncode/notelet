@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   EMPTY_NOTE_HTML, isEmptyNote, isExpired, newNote, noteLines, notePreview, noteText, noteTitle, orderedGroups, placeNote,
   stepNote,
-} from "../extension/model.js";
+} from "../app/model.js";
 
 const DAY_MS = 86_400_000;
 const NOW = new Date(2026, 9, 8, 15, 0).getTime();

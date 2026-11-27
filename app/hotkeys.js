@@ -121,8 +121,8 @@ export function reservedReason(combo, isMac) {
   const label = hotkeyLabel(combo, isMac);
   if (!combo.mod && !combo.alt && !FUNCTION_KEY.test(combo.code)) return `Add ${isMac ? "⌘ or ⌥" : "Ctrl or Alt"}, so the key doesn't just type.`;
   if (!isMac && combo.alt && combo.shift && !combo.mod) return "Alt+Shift switches the keyboard language on Windows.";
-  if (combo.mod && !combo.alt && (combo.shift ? CHROME_MOD_SHIFT_KEYS : CHROME_MOD_KEYS).has(combo.code)) return `Chrome keeps ${label} for itself.`;
-  if (!isMac && combo.alt && !combo.mod && !combo.shift && WINDOWS_ALT_KEYS.has(combo.code)) return `${label} is kept by Chrome or Windows.`;
+  if (combo.mod && !combo.alt && (combo.shift ? CHROME_MOD_SHIFT_KEYS : CHROME_MOD_KEYS).has(combo.code)) return `${label} is reserved by the browser engine Notelet runs on.`;
+  if (!isMac && combo.alt && !combo.mod && !combo.shift && WINDOWS_ALT_KEYS.has(combo.code)) return `${label} is reserved by Windows or the browser engine.`;
   return null;
 }
 

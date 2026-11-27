@@ -1,9 +1,9 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseHtml } from "../extension/model.js";
-import { DEFAULT_SECTIONS, ensureSprintSections, extractTracker, isValidSections } from "../extension/sections.js";
-import { DEFAULT_STATUSES } from "../extension/sprint.js";
+import { parseHtml } from "../app/model.js";
+import { DEFAULT_SECTIONS, ensureSprintSections, extractTracker, isValidSections } from "../app/sections.js";
+import { DEFAULT_STATUSES } from "../app/sprint.js";
 
 const SECTIONED = '<h1>Sprint</h1>'
   + '<h2 data-section="last">Last Sprint</h2><ul class="checklist"><li data-checked="true" data-points="3">old</li></ul>'

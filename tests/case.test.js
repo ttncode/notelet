@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { nextCase, wordAt } from "../extension/case.js";
+import { nextCase, wordAt } from "../app/case.js";
 
 const press = (text) => nextCase(text)(text);
 

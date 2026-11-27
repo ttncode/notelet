@@ -1,11 +1,11 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseHtml } from "../extension/model.js";
+import { parseHtml } from "../app/model.js";
 import {
   blockTagForShortcut, checkboxForShortcut, endsWithTwoEmptyLines, itemCreatedBySplit, liftListOutOfParagraph, listKindForShortcut, removeTwoEmptyLines, removeLeadingText,
   setBlockType, splitParagraphsIntoItems,
-} from "../extension/lists.js";
+} from "../app/lists.js";
 
 function paragraphWith(...children) {
   const doc = parseHtml("");

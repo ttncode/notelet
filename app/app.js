@@ -95,7 +95,7 @@ async function main() {
   store.onChange(applyRemoteChanges);
   openInitialNote();
   steps = createNavigation({ readView, showView });
-  whenShown(document, window, () => showStartupNotice(recovery, loaded.notes.length === 0));
+  whenShown(document, window, () => showStartupNotice(recovery));
 }
 
 // shortcut: an edit typed under SAVE_DELAY_MS before Windows shuts down can be lost, since WebView2
@@ -120,16 +120,10 @@ function onHistoryKey(event) {
   else history.forward();
 }
 
-// A damaged notes file is explained once; a first launch with no notes offers the backup from the extension.
-function showStartupNotice(recovery, isEmpty) {
+// A damaged notes file is explained once.
+function showStartupNotice(recovery) {
   const message = recoveryMessage(recovery);
-  if (message) {
-    showToast(message);
-    return;
-  }
-  if (!isEmpty || state.ui.importOffered) return;
-  saveUiSoon({ importOffered: true });
-  showToast("Moving from the Chrome extension? Export a backup there, then choose Import backup.", { label: "Import backup", run: () => importNotes().catch(reportImportError) });
+  if (message) showToast(message);
 }
 
 const toggleMaximize = () => tauri.core.invoke("toggle_maximize").catch((error) => console.error("Notelet: could not resize the window", error));

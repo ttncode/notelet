@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HOTKEYS } from "../extension/hotkeys.js";
+import { HOTKEYS } from "../app/hotkeys.js";
 import { keyValue } from "../tests-e2e/webdriver.js";
 
 test("WebDriver key values for letters, digits, function keys and punctuation", () => {

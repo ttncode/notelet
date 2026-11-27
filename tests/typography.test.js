@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isStraightQuote, smartQuote, substitutionBefore } from "../extension/typography.js";
+import { isStraightQuote, smartQuote, substitutionBefore } from "../app/typography.js";
 
 test("arrows, the ellipsis and the em dash replace what was typed", () => {
   const replaced = (text) => substitutionBefore(text)?.replacement ?? null;

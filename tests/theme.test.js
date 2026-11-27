@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { nextTheme, themeLabel } from "../extension/theme.js";
+import { nextTheme, themeLabel } from "../app/theme.js";
 
 test("the theme cycles System, Light, Dark and back", () => {
   assert.equal(nextTheme("system"), "light");

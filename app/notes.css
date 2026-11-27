@@ -320,7 +320,7 @@ body:not(.viewing-deleted) #recover-button { display: none; }
 /* The note text belongs to a sprint screen; the other screens hide it. */
 .board[data-screen="all"] ~ .editor, .board[data-screen="task"] ~ .editor { display: none; }
 .board-notes-label { margin: 0 0 0.4rem; font-size: 1.05rem; font-weight: 700; }
-/* In the popup the status moves under the task so the title keeps most of the row. */
+/* In a narrow window the status moves under the task so the title keeps most of the row. */
 @container (max-width: 300px) {
   .task-row { grid-template-columns: minmax(0, 1fr) 3.25rem; }
   .task-row .task-status { grid-column: 1; justify-self: start; margin: 0 0 0.45rem 1rem; }

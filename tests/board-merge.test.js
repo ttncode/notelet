@@ -1,8 +1,8 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mergeTrackers } from "../extension/board-merge.js";
-import { isValidBoard, sprintName } from "../extension/board.js";
+import { mergeTrackers } from "../app/board-merge.js";
+import { isValidBoard, sprintName } from "../app/board.js";
 
 const NOW = Date.UTC(2026, 9, 10);
 const DONE = "s5";

@@ -1,8 +1,8 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { codeBlockLines, fenceLanguage, isCodeLanguage, languageOf, setLanguage, unifyCodeLanguages } from "../extension/code-block.js";
-import { parseHtml } from "../extension/model.js";
+import { codeBlockLines, fenceLanguage, isCodeLanguage, languageOf, setLanguage, unifyCodeLanguages } from "../app/code-block.js";
+import { parseHtml } from "../app/model.js";
 
 const body = (html) => parseHtml(html).body;
 

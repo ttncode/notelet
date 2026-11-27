@@ -1,6 +1,6 @@
 import { test, mock } from "node:test";
 import assert from "node:assert/strict";
-import { createSaveScheduler } from "../extension/scheduler.js";
+import { createSaveScheduler } from "../app/scheduler.js";
 
 function setup() {
   mock.timers.enable({ apis: ["setTimeout", "Date"] });

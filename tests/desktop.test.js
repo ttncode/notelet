@@ -1,9 +1,9 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createFileArea, historyKey, recoveryMessage, whenShown } from "../extension/desktop.js";
-import { DEFAULT_UI, SCHEMA_VERSION, createStore } from "../extension/store.js";
-import { defaultSettings } from "../extension/sprint.js";
+import { createFileArea, historyKey, recoveryMessage, whenShown } from "../app/desktop.js";
+import { DEFAULT_UI, SCHEMA_VERSION, createStore } from "../app/store.js";
+import { defaultSettings } from "../app/sprint.js";
 
 function fakeBackend(initial = {}, { recovered = null, damagedPath = null } = {}) {
   const calls = [];

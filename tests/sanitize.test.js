@@ -1,8 +1,8 @@
 import "./dom.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseHtml } from "../extension/model.js";
-import { linkableUrl, normalizeLineBreaks, plainTextToHtml, sanitizeHtml, sanitizePastedHtml } from "../extension/sanitize.js";
+import { parseHtml } from "../app/model.js";
+import { linkableUrl, normalizeLineBreaks, plainTextToHtml, sanitizeHtml, sanitizePastedHtml } from "../app/sanitize.js";
 
 test("keeps the editor's own structure unchanged", () => {
   const html = '<h1>T</h1><h2>H</h2><h3>S</h3><p>a <b>b</b> <i>c</i> <u>d</u> <s>e</s><br></p>'
