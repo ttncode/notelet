@@ -317,8 +317,8 @@ body:not(.viewing-deleted) #recover-button { display: none; }
 .task-list { max-width: 60%; padding: 0.2rem 0.4rem; border: 0; border-radius: 6px; background: none; color: var(--secondary); font: inherit; text-align: right; }
 .task-list option { background: var(--card); color: var(--text); }
 
-/* The note text belongs to a sprint screen; the other screens hide it. */
-.board[data-screen="all"] ~ .editor, .board[data-screen="task"] ~ .editor { display: none; }
+/* The note text belongs to a sprint screen; the other screens hide it. A hidden board keeps its last screen, so it must not hide a plain note. */
+.board:not([hidden])[data-screen="all"] ~ .editor, .board:not([hidden])[data-screen="task"] ~ .editor { display: none; }
 .board-notes-label { margin: 0 0 0.4rem; font-size: 1.05rem; font-weight: 700; }
 /* In a narrow window the status moves under the task so the title keeps most of the row. */
 @container (max-width: 300px) {
