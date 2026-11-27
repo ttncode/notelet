@@ -2,8 +2,8 @@ import { trackerTitle } from "./tracker.js";
 
 const DAY_MS = 86_400_000;
 const RECENTLY_DELETED_DAYS = 30;
-const TEXT_BLOCKS = "h1,h2,h3,p,pre,li,div";
-const NESTED_BLOCKS = "ul,ol,p,h1,h2,h3,pre,div";
+const TEXT_BLOCKS = "h1,h2,h3,p,pre,blockquote,li,div";
+const NESTED_BLOCKS = "ul,ol,p,h1,h2,h3,pre,blockquote,div";
 const FALLBACK_TITLE = "New Note";
 const FALLBACK_PREVIEW = "No additional text";
 

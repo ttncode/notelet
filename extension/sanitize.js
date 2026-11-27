@@ -1,3 +1,4 @@
+import { isCodeLanguage } from "./code-block.js";
 import { parseHtml } from "./model.js";
 
 const ELEMENT_NODE = 1;
@@ -9,13 +10,13 @@ const KEPT_TAGS = {
   b: "b", strong: "b", i: "i", em: "i", u: "u", s: "s", strike: "s", del: "s", a: "a", br: "br",
 };
 const PARAGRAPH_LIKE = new Set([
-  "div", "section", "article", "blockquote", "tr", "header", "footer", "main", "figure", "figcaption", "dt", "dd", "address", "caption",
+  "div", "section", "article", "tr", "header", "footer", "main", "figure", "figcaption", "dt", "dd", "address", "caption",
 ]);
 const DROPPED = new Set([
   "script", "style", "img", "picture", "video", "audio", "iframe", "object", "embed", "svg", "canvas", "template",
   "noscript", "head", "title", "meta", "link", "button", "input", "select", "textarea",
 ]);
-const BLOCK_TAGS = new Set([...PARAGRAPH_LIKE, "h1", "h2", "h3", "h4", "h5", "h6", "p", "pre", "ul", "ol", "li", "table", "tbody", "thead", "tfoot"]);
+const BLOCK_TAGS = new Set([...PARAGRAPH_LIKE, "h1", "h2", "h3", "h4", "h5", "h6", "p", "pre", "blockquote", "ul", "ol", "li", "table", "tbody", "thead", "tfoot"]);
 const CELL_TAGS = new Set(["td", "th"]);
 const LIST_CLASSES = new Set(["checklist", "dashed"]);
 const CHECKED_VALUES = new Set(["true", "false"]);
@@ -23,7 +24,7 @@ const POINTS_VALUE = /^\d+(\.\d+)?$/;
 const STATUS_ID = /^[a-z0-9-]{1,24}$/;
 const SECTION_IDS = new Set(["last", "current"]);
 const SAFE_URL = /^(https?:|mailto:)/i;
-const ROOT_BLOCKS = new Set(["h1", "h2", "h3", "p", "pre", "ul", "ol"]);
+const ROOT_BLOCKS = new Set(["h1", "h2", "h3", "p", "pre", "blockquote", "ul", "ol"]);
 const BOLD_TAGS = new Set(["b", "strong"]);
 const NOT_BOLD_STYLE = /font-weight:\s*(normal|[1-4]00)\b/i;
 const LIST_TAGS = new Set(["UL", "OL"]);
@@ -153,6 +154,8 @@ function cleanTagFor(element, tag) {
   // Google Docs wraps a whole copy in <b style="font-weight:normal">.
   if (BOLD_TAGS.has(tag) && NOT_BOLD_STYLE.test(element.getAttribute("style") ?? "")) return null;
   if (Object.hasOwn(KEPT_TAGS, tag)) return KEPT_TAGS[tag];
+  // A quote is one line, like a paragraph; a pasted quote of several paragraphs comes in as them.
+  if (tag === "blockquote") return hasBlockChild(element) ? null : "blockquote";
   if (PARAGRAPH_LIKE.has(tag)) return hasBlockChild(element) ? null : "p";
   return null;
 }
@@ -168,6 +171,7 @@ function copyAllowedAttributes(source, clean, tag) {
     if (kind) clean.setAttribute("class", kind);
   }
   if (tag === "li") copyTicketAttributes(source, clean);
+  if (tag === "pre" && isCodeLanguage(source.getAttribute("data-language"))) clean.setAttribute("data-language", source.getAttribute("data-language"));
   if (tag === "h2" && SECTION_IDS.has(source.getAttribute("data-section"))) clean.setAttribute("data-section", source.getAttribute("data-section"));
 }
 

@@ -118,3 +118,13 @@ test("punctuation typed after a URL stays out of the link", () => {
   assert.equal(linkableUrl("https://a.com/wiki/A_(b)"), "https://a.com/wiki/A_(b)");
   assert.equal(linkableUrl("https://a.com/?q=1"), "https://a.com/?q=1");
 });
+
+test("a one-line block quote is kept; a quote of several paragraphs comes in as the paragraphs", () => {
+  assert.equal(sanitizeHtml("<blockquote>said <b>so</b></blockquote>"), "<blockquote>said <b>so</b></blockquote>");
+  assert.equal(sanitizePastedHtml("<blockquote><p>one</p><p>two</p></blockquote>"), "<p>one</p><p>two</p>");
+});
+
+test("a code line keeps a known language and drops an unknown one", () => {
+  assert.equal(sanitizeHtml('<pre data-language="php">x</pre>'), '<pre data-language="php">x</pre>');
+  assert.equal(sanitizeHtml('<pre data-language="evil">x</pre>'), "<pre>x</pre>");
+});

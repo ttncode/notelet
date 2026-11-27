@@ -105,9 +105,27 @@ export function splitParagraphsIntoItems(item) {
 
 const LIST_SHORTCUTS = { "-": "dashed", "*": "bulleted", "•": "bulleted", "1.": "numbered", "1)": "numbered" };
 const CHECKBOX_SHORTCUTS = { "[ ]": false, "[]": false, "[x]": true, "[X]": true };
+const BLOCK_SHORTCUTS = { "#": "h1", "##": "h2", "###": "h3" };
 const TEXT_NODE = 3;
 
 export const listKindForShortcut = (prefix) => (Object.hasOwn(LIST_SHORTCUTS, prefix) ? LIST_SHORTCUTS[prefix] : null);
+
+export const blockTagForShortcut = (prefix) => (Object.hasOwn(BLOCK_SHORTCUTS, prefix) ? BLOCK_SHORTCUTS[prefix] : null);
+
+const isLineBreak = (node) => node?.nodeName === "BR";
+
+// Chrome ends a Monostyled block whose last two lines are empty with three <br>s: the break after
+// the last text, the first empty line's, and the one that lets the second empty line show.
+export function endsWithTwoEmptyLines(block) {
+  const last = block.lastChild;
+  return isLineBreak(last) && isLineBreak(last.previousSibling) && isLineBreak(last.previousSibling.previousSibling);
+}
+
+export function removeTwoEmptyLines(block) {
+  block.lastChild.remove();
+  block.lastChild.remove();
+  block.lastChild.remove();
+}
 
 export const checkboxForShortcut = (prefix) => (Object.hasOwn(CHECKBOX_SHORTCUTS, prefix) ? { checked: CHECKBOX_SHORTCUTS[prefix] } : null);
 

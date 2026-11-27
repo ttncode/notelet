@@ -33,6 +33,8 @@
 
 - **Feels like Notes.** Title, Heading and Body styles, bulleted, dashed, numbered and check lists, pinned notes, Recently Deleted, light and dark themes. In a narrow window it switches to the iPhone layout and its slide between screens.
 - **Sprints in one note.** Every sprint and a Backlog live in one Sprints note: a points donut, goals per sprint and per month, drag-and-drop tasks and a rich-text note for each task.
+- **Type it plainly, see it typeset.** `->`, `<-`, `==>`, `<=` and friends become →, ←, ⇒, ≤ drawn in JetBrains Mono's style; `--` becomes —, `...` becomes …, and quotes curl. `# `, `- ` and ```` ```php ```` start a heading, a list or a code block, and Ctrl+Z right after gives back what you typed.
+- **Code blocks.** Pick the language from the block's corner for syntax colours, copy the block with one click, and copy it with other text to get a Markdown code fence.
 - **Keyboard first.** Every button has a shortcut, and you can change any of them.
 - **Back and forward.** The mouse's side buttons and Alt+← / Alt+→ step through screens.
 - **Private.** Notes stay in one file on your PC. Export a backup file whenever you like.
@@ -125,6 +127,7 @@ Press `Ctrl+/` (`⌘/` on Mac) for the full list, grouped by topic. Every button
 | Go to the notes list / the note | `Alt+1` / `Alt+3` | `⌥1` / `⌥3` |
 | Text styles menu | `Alt+A` | `⌥A` |
 | Checklist | `Ctrl+Shift+L` | `⇧⌘L` |
+| Block quote | `Ctrl+'` | `⌘'` |
 | Move line / duplicate line | `Alt+↑↓` / `Ctrl+Alt+Shift+↑↓` | `⌥↑↓` / `⌘⌥⇧↑↓` |
 | Change case: lower, UPPER, Title | `Shift+F3` | `⇧F3` |
 | Back / Forward | mouse side buttons, `Alt+←` / `Alt+→` | mouse side buttons, `⌘[` / `⌘]` |
@@ -142,6 +145,7 @@ Text styles follow Notes for Mac with Ctrl in place of Cmd; where Chrome kept a 
 npm install
 npm test                  # unit tests for the UI modules
 node tools/make-icons.mjs # regenerate icons, then: npx tauri icon desktop/icons/source.png -o desktop/icons
+python3 tools/build-arrow-font.py …  # rebuild the arrow font; see the script for the steps
 npm run tauri dev         # run the app (Windows, with Rust and the MSVC build tools)
 ```
 

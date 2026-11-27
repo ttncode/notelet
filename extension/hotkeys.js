@@ -6,6 +6,7 @@ const DEFAULT_HOTKEYS = [
   { group: "Text styles", action: "body", label: "Body", mod: true, shift: true, code: "KeyB" },
   // Notes uses Shift+Cmd+M, but Ctrl+Shift+M is Chrome's profile menu.
   { group: "Text styles", action: "monostyled", label: "Monostyled", mod: true, shift: true, code: "KeyK" },
+  { group: "Text styles", action: "quote", label: "Block quote", mod: true, code: "Quote" },
   { group: "Text styles", action: "formatMenu", label: "Text styles menu", alt: true, code: "KeyA" },
   { group: "Formatting", action: "bold", label: "Bold", mod: true, code: "KeyB", native: true },
   { group: "Formatting", action: "italic", label: "Italic", mod: true, code: "KeyI", native: true },
