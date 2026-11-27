@@ -124,6 +124,16 @@ test("browser keys do nothing: reload, zoom and print", async () => {
   assert.equal(await app.execute("return window.__printed"), false);
 });
 
+test("a note opened after All Sprints shows its text", async () => {
+  await app.press({ alt: true, code: "KeyS" });
+  await app.waitFor("return document.querySelector('#board:not([hidden]) [data-action=\"all-sprints\"]') !== null");
+  await app.execute("document.querySelector('#board [data-action=\"all-sprints\"]').click()");
+  await app.waitFor("return document.getElementById('board').dataset.screen === 'all'");
+  await app.press({ alt: true, code: "KeyN" });
+  await app.waitFor("return document.getElementById('board').hidden");
+  assert.equal(await app.execute("return document.getElementById('editor').checkVisibility()"), true);
+});
+
 test("a note survives a restart", async () => {
   const marker = `persist-${Date.now()}`;
   await newNoteInEditor(marker);
